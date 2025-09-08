@@ -14,7 +14,7 @@ if (!process.env.DATABASE_URL) {
 export const AppDataSource = new DataSource({
   type: 'postgres',
   url: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  // ssl: { rejectUnauthorized: false },
   synchronize: false,
   entities: [User, Crop, File], // ✅ Explicit entities for CLI
   migrationsTableName: 'migrations',
