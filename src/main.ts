@@ -6,6 +6,9 @@ import { json, urlencoded } from 'express';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // ✅ Enable CORS
+  app.enableCors({ origin: '*' });
+
   // Increase payload size limit (e.g., 50MB)
   app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ extended: true, limit: '50mb' }));
