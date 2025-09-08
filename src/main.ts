@@ -17,6 +17,6 @@ async function bootstrap() {
     transform: true, // auto-transform payloads to DTO classes
   }));
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ? parseInt(process.env.PORT, 10) : 3000, '0.0.0.0');
 }
 bootstrap();
