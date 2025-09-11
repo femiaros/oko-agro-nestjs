@@ -9,14 +9,19 @@ export class CloudinaryService {
     async uploadFile(base64: string, folder: string, filename: string): Promise<UploadApiResponse> {
         return new Promise<UploadApiResponse>((resolve, reject) => {
             const upload = this.cloudinary.uploader.upload_stream(
-                { folder,  resource_type: 'auto' },
+                {
+                    folder,
+                    public_id: filename,   // ✅ use your custom name
+                    resource_type: 'auto', // auto-detect images/pdfs/videos
+                    overwrite: true,       // overwrite if same name exists
+                },
                 (error, result) => {
                     if (error) return reject(error);
                     resolve(result);
                 }
             );
             const buffer = Buffer.from(base64.split(',')[1], 'base64');
-            console.log("Cloudinary upload Buffer:", buffer);
+            // console.log("Cloudinary upload Buffer:", buffer);
 
             streamifier.createReadStream(buffer).pipe(upload);
             // upload.end(buffer);

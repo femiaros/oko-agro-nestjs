@@ -1,29 +1,37 @@
-import { BadRequestException, ConflictException, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpException, HttpStatus, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '../users/entities/user.entity';
+import { instanceToPlain } from 'class-transformer';
 import { DeepPartial, ILike, In, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { RegisterUserDto } from './dtos/register-user.dto';
 import { Crop } from '../crops/entities/crop.entity';
 import { FilesService } from 'src/files/files.service';
 import { LoginUserDto } from './dtos/login-user.dto';
+import { ForgotPasswordDto } from './dtos/forgot-password.dto';
+import { ResetPasswordDto } from './dtos/reset-password.dto';
 import { JwtService } from '@nestjs/jwt';
 import { Buffer } from 'buffer';
 import * as otpGenerator from 'otp-generator';
+import * as crypto from 'crypto';
 import { MailerService } from '../mailer/mailer.service';
+import { Certification } from '../certifications/entities/certification.entity';
+import { QualityStandard } from '../quality-standards/entities/quality-standard.entity';
 
 @Injectable()
 export class AuthService {
     constructor(
         @InjectRepository(User) private readonly usersRepository: Repository<User>,
-        @InjectRepository(Crop) private readonly cropRepository: Repository<Crop>,
+        @InjectRepository(Crop) private readonly cropsRepository: Repository<Crop>,
+        @InjectRepository(Certification) private readonly certificationsRepository: Repository<Certification>,
+        @InjectRepository(QualityStandard) private readonly qualityStandardsRepository: Repository<QualityStandard>,
         private readonly filesService: FilesService,
         private readonly jwtService: JwtService,
         private readonly mailerService: MailerService,
     ){}
 
     async registerUser(registerUserDto: RegisterUserDto){
-        const { confirmPassword, cropIds, userPhoto, farmPhoto, ...userData } = registerUserDto
+        const { confirmPassword, cropIds, certificationIds, qualityStandardIds, userPhoto, farmPhoto, ...userData } = registerUserDto
 
         // Check userPhoto
         if (registerUserDto.userPhoto) {
@@ -43,6 +51,25 @@ export class AuthService {
                 throw new BadRequestException('farmPhoto: Image size must be 2MB or less');
         }
 
+        // Document validation (businessRegCertDoc & taxIdCertDoc)
+        if (registerUserDto.businessRegCertDoc) {
+            if (!this.isValidImageType(registerUserDto.businessRegCertDoc)) {
+                throw new BadRequestException('businessRegCertDoc: Only jpeg/png are allowed');
+            }
+            if (!this.isValidatePhotoSize(registerUserDto.businessRegCertDoc)) {
+                throw new BadRequestException('businessRegCertDoc: Image size must be 2MB or less');
+            }
+        }
+
+        if (registerUserDto.taxIdCertDoc) {
+            if (!this.isValidImageType(registerUserDto.taxIdCertDoc)) {
+                throw new BadRequestException('taxIdCertDoc: Only jpeg/png are allowed');
+            }
+            if (!this.isValidatePhotoSize(registerUserDto.taxIdCertDoc)) {
+                throw new BadRequestException('taxIdCertDoc: Image size must be 2MB or less');
+            }
+        }
+
         // Check existingUser
         const existingUser = await this.usersRepository.findOne({where: { email: ILike(registerUserDto.email) }})
 
@@ -53,8 +80,22 @@ export class AuthService {
         // Fetch crops from DB
         let crops: Crop[] = [];
         if (cropIds && cropIds.length > 0) {
-            crops = await this.cropRepository.findBy({ id: In(cropIds) });
+            crops = await this.cropsRepository.findBy({ id: In(cropIds) });
             if (crops.length !== cropIds.length) throw new BadRequestException('One or more crop IDs are invalid')
+        }
+
+        // Fetch certifications from DB
+        let certifications: Certification[] = [];
+        if (certificationIds && certificationIds.length > 0) {
+            certifications = await this.certificationsRepository.findBy({ id: In(certificationIds) });
+            if (certifications.length !== certificationIds.length) throw new BadRequestException('One or more certification IDs are invalid')
+        }
+
+        // Fetch qualityStandards from DB
+        let qualityStandards: QualityStandard[] = [];
+        if (qualityStandardIds && qualityStandardIds.length > 0) {
+            qualityStandards = await this.qualityStandardsRepository.findBy({ id: In(qualityStandardIds) });
+            if (qualityStandards.length !== qualityStandardIds.length) throw new BadRequestException('One or more qualityStandard IDs are invalid')
         }
 
         const hashedPassword = await this.hashPassword(registerUserDto.password);
@@ -62,7 +103,9 @@ export class AuthService {
         const newUser = this.usersRepository.create({
             ...userData,
             password: hashedPassword,
-            crops
+            crops,
+            certifications,
+            qualityStandards
         } as DeepPartial<User>);
 
         // Save user first (so we have an id for relation)
@@ -75,6 +118,15 @@ export class AuthService {
 
         if (registerUserDto.farmPhoto) {
             await this.filesService.uploadFile(registerUserDto.farmPhoto, 'farmPhoto', savedUser)
+        }
+
+        // Upload registerUserDto.businessRegCertDoc if provided 
+        if (registerUserDto.businessRegCertDoc) { 
+            await this.filesService.uploadFile(registerUserDto.businessRegCertDoc, 'businessRegCertDoc', savedUser) 
+        } 
+        // Upload registerUserDto.taxIdCertDoc if provided 
+        if (registerUserDto.taxIdCertDoc) { 
+            await this.filesService.uploadFile(registerUserDto.taxIdCertDoc, 'taxIdCertDoc', savedUser) 
         }
 
         const otp = this.generateOtp();
@@ -112,7 +164,7 @@ export class AuthService {
     async loginUser(loginUserDto: LoginUserDto) {
         const existingUser = await this.usersRepository.findOne({ 
             where: { email: loginUserDto.email },
-            relations: ['crops'],
+            relations: ['crops','files','certifications','qualityStandards'],
         })
 
         if (!existingUser || !(await this.verifyPassword(loginUserDto.password, existingUser.password))) 
@@ -124,13 +176,11 @@ export class AuthService {
         // Generate tokens
         const tokens = this.generateTokens(existingUser)
 
-        const {password, ...userData} = existingUser;
-
         return {
             statusCode: 200,
             message: 'Login successful',
             data: {
-                user: userData,
+                user: instanceToPlain(existingUser),
                 tokens
             },
         }
@@ -142,7 +192,10 @@ export class AuthService {
 
         const otp = this.generateOtp();
         const expiry = new Date();
+        console.log("Now:", expiry.toLocaleString()); 
+
         expiry.setMinutes(expiry.getMinutes() + 10);
+        console.log("Expiry:", expiry.toLocaleString());
 
         user.userVerificationOtp = otp;
         user.userVerificationOtpExpiryTime = expiry;
@@ -189,6 +242,74 @@ export class AuthService {
         return { statusCode: 200, message: 'User verified successfully' };
     }
 
+    
+    async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+        const email = forgotPasswordDto.email.toLowerCase().trim();
+        const user = await this.usersRepository.findOne({ where: { email } });
+
+        if (!user) throw new NotFoundException('User with email not found');
+
+        // create token & save hashed token in DB
+        const { token, hashedToken, expiresAt } = this.createPasswordResetToken();
+        user.passwordResetToken = hashedToken;
+        user.passwordResetExpiryTime = expiresAt;
+        await this.usersRepository.save(user);
+
+        // Build reset URL for client
+        const clientUrlBase = process.env.CLIENT_NEW_PASSWORD_URL ?? '';
+        const resetUrl = `${clientUrlBase}${token}`;
+        console.log("resetUrl:", resetUrl);
+
+        // email content
+        const subject = 'OkoAgro Account Reset Password';
+        const text = `You requested a password reset. Click the link to set a new password (valid 10 minutes): ${resetUrl}`;
+        const html = `<p>You requested a password reset.</p><p>Click the link to set a new password (valid 10 minutes):</p>
+                        <p><a href="${resetUrl}">Click to reset password</a></p>`;
+
+        const result = await this.mailerService.sendMail(user.email, subject, text, html);
+
+        if (!result.success) throw new BadRequestException('Failed to send reset email. Please try again later.');
+
+        return {
+            statusCode: 200,
+            message: 'Reset password link sent to email!',
+        };
+    }
+
+    async resetPassword(resetPasswordDto: ResetPasswordDto) {
+        const { resetToken, newPassword, confirmPassword } = resetPasswordDto;
+        if (!resetToken || !newPassword || !confirmPassword) {
+            throw new BadRequestException('Token with password is required');
+        }
+        if (newPassword !== confirmPassword) {
+            throw new BadRequestException('Passwords do not match');
+        }
+
+        // hash incoming token & find user that has that hashed token
+        const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+        const user = await this.usersRepository.findOne({
+            where: {
+                passwordResetToken: hashedToken,
+            },
+        });
+
+        // check token not expired
+        if (!user || !user.passwordResetExpiryTime || new Date() > user.passwordResetExpiryTime) {
+            throw new ConflictException('Token is invalid or expired');
+        }
+
+        // set new password
+        const hashedPwd = await this.hashPassword(newPassword);
+        user.password = hashedPwd;
+        user.passwordResetToken = null;
+        user.passwordResetExpiryTime = null;
+        user.passwordChangedAt = new Date();
+
+        await this.usersRepository.save(user);
+
+        return { statusCode: 200, message: 'Password reset successfully' };
+    }
 
 
     async getRefreshToken(refreshToken: string) {
@@ -208,12 +329,15 @@ export class AuthService {
 
     async getUserById(userId: string) {
         try{
-            const user = await this.usersRepository.findOne({ where: {id: userId} })
+            const user = await this.usersRepository.findOne({ 
+                where: {id: userId},
+                relations: ['crops','files','certifications','qualityStandards']
+            })
 
             if (!user) throw new UnauthorizedException('User not found')
 
-            const {password, ...userData} = user;
-            return userData
+            // const {password, ...userData} = user;
+            return instanceToPlain(user)
         }catch(e){
             throw new UnauthorizedException('Error occured while fetching user')
         }
@@ -256,7 +380,7 @@ export class AuthService {
 
         return this.jwtService.sign(payload, {
             secret: process.env.JWT_REFRESH_SECRET,
-            expiresIn: '15m' // '7d'
+            expiresIn: '30m' // '7d'
         })
     }
 
@@ -308,12 +432,64 @@ export class AuthService {
         }
     }
 
+    private isValidDocType(base64: string): boolean {
+        try {
+            // Match the MIME type in the base64 header
+            const headerMatch = base64.match(/^data:([a-zA-Z0-9/+.-]+);base64,/);
+
+            if (headerMatch && headerMatch[1]) {
+                const mimeType = headerMatch[1].toLowerCase();
+
+                const allowedTypes = [
+                    'image/jpeg',
+                    'image/jpg',
+                    'image/pjpeg',   // progressive JPEG
+                    'image/png',
+                    'image/x-png',   // older png encoding
+                    'application/pdf'
+                ];
+
+                return allowedTypes.includes(mimeType);
+            }
+
+            return false;
+        } catch (error) {
+            console.error('Error in isValidDocType:', error);
+            return false;
+        }
+    }
+
+
+
+    private isValidDocSize(base64: string): boolean {
+        try {
+            const base64Data = base64.replace(/^data:.*;base64,/, '');
+            const padding = (base64Data.match(/=*$/) || [''])[0].length;
+            const sizeInBytes = (base64Data.length * 3) / 4 - padding;
+            return sizeInBytes <= 600 * 1024; // 600KB
+        } catch {
+            return false;
+        }
+    }
+
+
     private generateOtp(): string {
         return otpGenerator.generate(6, {
             upperCaseAlphabets: false,
             specialChars: false,
             lowerCaseAlphabets: false,
         });
+    }
+
+    private createPasswordResetToken(): { token: string; hashedToken: string; expiresAt: Date } {
+        // plain token to send via email
+        const token = crypto.randomBytes(32).toString('hex'); // 64 chars
+        // hashed token to store in DB
+        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+        console.log("NOW:", Date.now().toLocaleString());
+        console.log("EXPIRY:", expiresAt.toLocaleString());
+        return { token, hashedToken, expiresAt };
     }
 
 }

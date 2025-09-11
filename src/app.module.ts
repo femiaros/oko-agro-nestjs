@@ -9,12 +9,14 @@ import { CropsModule } from './crops/crops.module';
 import { FilesModule } from './files/files.module';
 import ormconfig from './config/ormconfig';
 import { MailerModule } from './mailer/mailer.module';
+import { CertificationsModule } from './certifications/certifications.module';
+import { QualityStandardsModule } from './quality-standards/quality-standards.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }), // makes ConfigService available everywhere
     TypeOrmModule.forRoot(ormconfig),
-    UsersModule, AuthModule, CropsModule, FilesModule, MailerModule
+    UsersModule, AuthModule, CropsModule, FilesModule, MailerModule, CertificationsModule, QualityStandardsModule
   ],
   controllers: [AppController],
   providers: [AppService],

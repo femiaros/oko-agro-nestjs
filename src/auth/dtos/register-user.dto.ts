@@ -1,5 +1,5 @@
-import { IsString, IsEmail, IsNotEmpty, IsEnum, IsArray, IsNumber, IsOptional } from "class-validator";
-import { FarmSizeUnit, UserRole } from "src/users/entities/user.entity";
+import { IsString, IsEmail, IsNotEmpty, IsEnum, IsArray, IsOptional, MinLength } from "class-validator";
+import { BusinessType, FarmSizeUnit, OperatingDaysPerWeek, ProcesssingCapacityUnit, UserRole } from "src/users/entities/user.entity";
 
 export class RegisterUserDto {
     // Basic Info
@@ -36,23 +36,75 @@ export class RegisterUserDto {
     @IsOptional()
     farmName?: string;
 
-    @IsNumber()
+    @IsString()
     @IsOptional()
-    farmSize?: number;
+    farmSize?: string;
 
     @IsEnum(FarmSizeUnit)
     @IsOptional()
-    unit?: FarmSizeUnit;
+    farmSizeUnit?: FarmSizeUnit;
 
-    @IsNumber()
+    @IsString()
     @IsOptional()
-    estimatedAnnualProduction?: number;
+    estimatedAnnualProduction?: string;
 
     // Crops (array of crop IDs from frontend)
     @IsArray()
     @IsString({ each: true })
     @IsOptional()
     cropIds?: string[];
+
+    // Processor Company specific Info
+    @IsString()
+    @IsOptional()
+    companyName?: string;
+
+    @IsString()
+    @IsOptional()
+    businessRegNumber?: string;
+
+    @IsString()
+    @IsOptional()
+    yearEstablished?: string;
+
+    @IsEnum(BusinessType)
+    @IsOptional()
+    businessType?: BusinessType;
+
+    @IsString()
+    @IsOptional()
+    processsingCapacitySize?: string;
+
+    @IsEnum(ProcesssingCapacityUnit)
+    @IsOptional()
+    processsingCapacityUnit?: ProcesssingCapacityUnit;
+
+    @IsEnum(OperatingDaysPerWeek)
+    @IsOptional()
+    operatingDaysPerWeek?: OperatingDaysPerWeek;
+
+    @IsString()
+    @IsOptional()
+    storageCapacity?: string;
+
+    @IsString()
+    @IsOptional()
+    minimumOrderQuality?: string;
+
+    @IsString()
+    @IsOptional()
+    OperationsType?: string;
+
+    // Quality Standards & Certifications
+    @IsArray()
+    @IsString({ each: true })
+    @IsOptional()
+    qualityStandardIds?: string[];
+
+    @IsArray()
+    @IsString({ each: true })
+    @IsOptional()
+    certificationIds?: string[];
 
     // Experience Assessment
     @IsString()
@@ -73,8 +125,17 @@ export class RegisterUserDto {
     farmPhoto?: string;
 
     @IsString()
-    @IsNotEmpty({message: 'UserPhoto is required'})
+    @IsOptional()
     userPhoto?: string;
+
+    // Document Verification (base64 strings for jpeg/png/pdf)
+    @IsString()
+    @IsOptional()
+    businessRegCertDoc?: string;
+
+    @IsString()
+    @IsOptional()
+    taxIdCertDoc?: string;
 
     // Payment Setup
     @IsString()
@@ -92,6 +153,7 @@ export class RegisterUserDto {
     // Auth fields
     @IsString()
     @IsNotEmpty()
+    @MinLength(8, { message: 'Password must be at least 8 characters' })
     password: string;
 
     @IsString()

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { CropsService } from './crops.service';
 import { Crop } from './entities/crop.entity';
 import { CreateCropDto } from './dtos/create-crop.dto';
@@ -12,6 +12,7 @@ export class CropsController {
     constructor(private readonly cropsService: CropsService) {}
 
     @Post('create')
+    @HttpCode(HttpStatus.CREATED)
     @Roles(UserRole.ADMIN)
     @UseGuards(JwtAuthGuard, RolesGuard)
     async create(@Body() createCropDto: CreateCropDto): Promise<Crop> {
@@ -19,6 +20,7 @@ export class CropsController {
     }
 
     @Get()
+    @HttpCode(HttpStatus.OK)
     async findAll(): Promise<Crop[]> {
         return this.cropsService.findAll();
     }

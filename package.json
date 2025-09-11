@@ -23,6 +23,8 @@
     "migration:run": "npm run typeorm -- migration:run -d src/config/data-source.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d src/config/data-source.ts",
     "seed:crops": "ts-node -r tsconfig-paths/register src/seeds/crop.seeder.ts",
+    "seed:quality-standards": "ts-node -r tsconfig-paths/register src/seeds/quality-standard.seeder.ts",
+    "seed:certifications": "ts-node -r tsconfig-paths/register src/seeds/certification.seeder.ts",
     "db:drop": "npm run typeorm -- schema:drop -d src/config/data-source.ts",
     "db:truncate": "ts-node -r tsconfig-paths/register src/scripts/truncate.ts",
     "db:seed:reset": "npm run db:truncate && npm run seed:crops"

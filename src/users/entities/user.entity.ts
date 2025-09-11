@@ -1,5 +1,8 @@
+import { Exclude } from 'class-transformer';
+import { Certification } from 'src/certifications/entities/certification.entity';
 import { Crop } from 'src/crops/entities/crop.entity';
 import { File } from 'src/files/entities/file.entity';
+import { QualityStandard } from 'src/quality-standards/entities/quality-standard.entity';
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToMany, JoinTable, OneToMany } from 'typeorm';
 
 export enum UserRole {
@@ -13,82 +16,174 @@ export enum FarmSizeUnit {
   ACRE = 'acre',
 }
 
+export enum BusinessType {
+  FOODPROCESSING = 'food processing',
+  OILMILL = 'oil mill',
+  FLOORMILL = 'floor mill',
+  RICEMILL = 'rice mill',
+  CASSAVAPROCESSING = 'cassava processing',
+  FRUITPROCESSING = 'fruit processing',
+}
+
+export enum ProcesssingCapacityUnit {
+  TONS = 'tons'
+}
+
+export enum OperatingDaysPerWeek {
+  SEVENDAYS = '7days',
+  SIXDAYS = '6days',
+  FIVEDAYS = '5days',
+  SEASONALOPERATIONS = 'seasonal operation'
+}
+
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   firstName: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   lastName: string;
 
-  @Column({ unique: true })
+  @Column({ type: 'varchar', unique: true })
   email: string;
 
-  @Column()
+  @Exclude()
+  @Column({ type: 'varchar' })
   password: string; // hash will be saved here
 
-  @Column()
+  @Column({ type: 'varchar' })
   phoneNumber: string;
 
-  @Column({ nullable: true })
-  farmAddress: string;
+  @Column({ type: 'varchar', nullable: true })
+  farmAddress: string | null;
 
-  @Column({ nullable: true })
-  country: string;
+  @Column({ type: 'varchar', nullable: true })
+  country: string | null;
 
-  @Column({ nullable: true })
-  state: string;
+  @Column({ type: 'varchar', nullable: true })
+  state: string | null;
 
-  @Column({ nullable: true })
-  farmName: string;
+  @Column({ type: 'varchar', nullable: true })
+  farmName: string | null;
 
-  @Column({ type: 'decimal', nullable: true })
-  farmSize: number;
+  @Column({ type: 'varchar', nullable: true })
+  farmSize: string | null;
 
   @Column({ type: 'enum', enum: FarmSizeUnit, nullable: true })
-  unit: FarmSizeUnit;
+  farmSizeUnit: FarmSizeUnit;
 
-  @Column({ nullable: true })
-  estimatedAnnualProduction: string;
+  @Column({ type: 'varchar', nullable: true })
+  estimatedAnnualProduction: string | null;
 
-  @Column({ nullable: true })
-  farmingExperience: string;
+  @Column({ type: 'varchar', nullable: true })
+  farmingExperience: string | null;
 
-  @Column({ nullable: true })
-  internetAccess: string;
+  @Column({ type: 'varchar', nullable: true })
+  internetAccess: string | null;
 
-  @Column({ nullable: true })
-  howUserSellCrops: string;
+  @Column({ type: 'varchar', nullable: true })
+  howUserSellCrops: string | null;
 
-  @Column({ nullable: true })
-  bankName: string;
+  @Column({ type: 'varchar', nullable: true })
+  bankName: string | null;
 
-  @Column({ nullable: true })
-  accountNumber: string;
+  @Column({ type: 'varchar', nullable: true })
+  accountNumber: string | null;
 
   @Column({ type: 'enum', enum: UserRole })
   role: UserRole;
 
-  @Column({ default: false })
+  // Processor Company specific Info
+  @Column({ type: 'varchar', nullable: true })
+  companyName: string | null;
+
+  // @Column({ type: 'varchar', nullable: true })
+  // companyContactPersonFullName: string | null;
+
+  // @Column({ type: 'varchar', unique: true })
+  // companyEmail: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  businessRegNumber: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  yearEstablished: string | null;
+
+  @Column({ type: 'enum', enum: BusinessType, nullable: true })
+  businessType: BusinessType;
+
+  @Column({ type: 'varchar', nullable: true })
+  processsingCapacitySize: string | null;
+
+  @Column({ type: 'enum', enum: ProcesssingCapacityUnit, nullable: true })
+  processsingCapacityUnit: ProcesssingCapacityUnit;
+
+  @Column({ type: 'enum', enum: OperatingDaysPerWeek, nullable: true })
+  operatingDaysPerWeek: OperatingDaysPerWeek;
+
+  @Column({ type: 'varchar', nullable: true })
+  storageCapacity: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  minimumOrderQuality: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  OperationsType: string | null;
+
+  // User verification
+  @Column({ type: 'boolean', default: false })
   userVerified: boolean;
 
+  @Exclude()
   @Column({ type: 'varchar', nullable: true })
   userVerificationOtp: string | null;
 
+  @Exclude()
   @Column({ type: 'timestamptz', nullable: true })
   userVerificationOtpExpiryTime: Date | null;
 
-  @Column({ default: false })
+  // Password reset
+  @Exclude()
+  @Column({ type: 'varchar', nullable: true })
+  passwordResetToken: string | null;
+
+  @Exclude()
+  @Column({ type: 'timestamptz', nullable: true })
+  passwordResetExpiryTime: Date | null;
+
+  @Exclude()
+  @Column({ type: 'timestamptz', nullable: true })
+  passwordChangedAt: Date | null;
+
+  @Column({ type: 'boolean', default: false })
   isDeleted: boolean;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
+
+  // ✅ Relation: User ↔ Certifications (many-to-many)
+  @ManyToMany(() => Certification, (certification) => certification.users, { cascade: true })
+  @JoinTable({
+    name: 'user_certifications', // join table name
+    joinColumn: { name: 'userId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'certificationId', referencedColumnName: 'id' },
+  })
+  certifications: Certification[];
+
+  // ✅ Relation: User ↔ QualityStandards (many-to-many)
+  @ManyToMany(() => QualityStandard, (qualityStandard) => qualityStandard.users, { cascade: true })
+  @JoinTable({
+    name: 'user_qualityStandards', // join table name
+    joinColumn: { name: 'userId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'qualityStandardId', referencedColumnName: 'id' },
+  })
+  qualityStandards: QualityStandard[];
 
   // ✅ Relation: User ↔ Crops (many-to-many)
   @ManyToMany(() => Crop, (crop) => crop.users, { cascade: true })
