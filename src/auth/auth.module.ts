@@ -17,7 +17,10 @@ import { RolesGuard } from './guards/roles-guard';
   imports: [
     TypeOrmModule.forFeature([User, Crop, Certification, QualityStandard]), // This makes user repository available for injection
     PassportModule, // PassportModule - Passport Service will be used in auth service
-    JwtModule.register({}), // Configure JWT
+    JwtModule.register({
+      secret: process.env.JWT_SECRET,
+      signOptions: { expiresIn: process.env.JWT_EXPIRES },
+    }), // Configure JWT
     FilesModule,
     MailerModule
   ], 

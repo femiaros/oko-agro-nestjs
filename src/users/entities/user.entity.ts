@@ -3,6 +3,8 @@ import { Certification } from 'src/certifications/entities/certification.entity'
 import { Crop } from 'src/crops/entities/crop.entity';
 import { File } from 'src/files/entities/file.entity';
 import { QualityStandard } from 'src/quality-standards/entities/quality-standard.entity';
+import { Product } from 'src/products/entities/product.entity';
+import { Event } from 'src/events/entities/event.entity';
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToMany, JoinTable, OneToMany } from 'typeorm';
 
 export enum UserRole {
@@ -184,6 +186,14 @@ export class User {
     inverseJoinColumn: { name: 'qualityStandardId', referencedColumnName: 'id' },
   })
   qualityStandards: QualityStandard[];
+
+  // ✅ Products owned by this user
+  @OneToMany(() => Product, (product) => product.owner)
+  products: Product[];
+
+  // ✅ Events created by this user
+  @OneToMany(() => Event, (event) => event.owner)
+  events: Event[];
 
   // ✅ Relation: User ↔ Crops (many-to-many)
   @ManyToMany(() => Crop, (crop) => crop.users, { cascade: true })

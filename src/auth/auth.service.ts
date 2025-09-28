@@ -1,4 +1,5 @@
-import { BadRequestException, ConflictException, HttpException, HttpStatus, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { handleServiceError } from 'src/common/utils/error-handler.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '../users/entities/user.entity';
 import { instanceToPlain } from 'class-transformer';
@@ -334,12 +335,12 @@ export class AuthService {
                 relations: ['crops','files','certifications','qualityStandards']
             })
 
-            if (!user) throw new UnauthorizedException('User not found')
+            if (!user) throw new NotFoundException('User not found')
 
             // const {password, ...userData} = user;
             return instanceToPlain(user)
-        }catch(e){
-            throw new UnauthorizedException('Error occured while fetching user')
+        }catch(error){
+            handleServiceError(error, 'An error occurred');
         }
     }
 
@@ -369,7 +370,7 @@ export class AuthService {
 
         return this.jwtService.sign(payload, {
             secret: process.env.JWT_SECRET,
-            expiresIn: '5m' // 15m
+            expiresIn: process.env.JWT_EXPIRES // 15m
         })
     }
 
@@ -380,7 +381,7 @@ export class AuthService {
 
         return this.jwtService.sign(payload, {
             secret: process.env.JWT_REFRESH_SECRET,
-            expiresIn: '30m' // '7d'
+            expiresIn: process.env.JWT_REFRESH_EXPIRES // '7d'
         })
     }
 

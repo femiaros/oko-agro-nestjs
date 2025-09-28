@@ -11,12 +11,17 @@ import ormconfig from './config/ormconfig';
 import { MailerModule } from './mailer/mailer.module';
 import { CertificationsModule } from './certifications/certifications.module';
 import { QualityStandardsModule } from './quality-standards/quality-standards.module';
+import { ProductsModule } from './products/products.module';
+import { FarmerProductPhotoFilesModule } from './farmer-product-photo-files/farmer-product-photo-files.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }), // makes ConfigService available everywhere
     TypeOrmModule.forRoot(ormconfig),
-    UsersModule, AuthModule, CropsModule, FilesModule, MailerModule, CertificationsModule, QualityStandardsModule
+    UsersModule, AuthModule, CropsModule, FilesModule, MailerModule, 
+    CertificationsModule, QualityStandardsModule, ProductsModule, 
+    FarmerProductPhotoFilesModule, EventsModule
   ],
   controllers: [AppController],
   providers: [AppService],

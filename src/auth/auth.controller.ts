@@ -56,7 +56,7 @@ export class AuthController {
         return this.authService.resetPassword(resetPasswordDto);
     }
 
-    // 🔒 Proctected
+    // Proctected
     @UseGuards(JwtAuthGuard)
     @Get('profile')
     @HttpCode(HttpStatus.OK)
