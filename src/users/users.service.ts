@@ -41,6 +41,8 @@ export class UsersService {
                     'files',
                     'products',
                     'events',
+                    'buyRequestsAsBuyer',
+                    'buyRequestsAsSeller',
                 ], // include all relations
             });
 
@@ -128,11 +130,11 @@ export class UsersService {
                 statusCode: 200,
                 message: sortedItems.length < 1 ? 'No processor user found' : 'Processor user(s) fetched successfully',
                 data: {
-                items: sortedItems,
-                matchedRecord,
-                totalRecord,
-                pageNumber,
-                pageSize,
+                    items: sortedItems,
+                    matchedRecord,
+                    totalRecord,
+                    pageNumber,
+                    pageSize,
                 },
             };
         } catch (error) {
@@ -140,4 +142,87 @@ export class UsersService {
             handleServiceError(error, 'An error occurred, while fetching processor users');
         }
     }
+
+    async findFarmers(
+        currentUser: User,
+        search?: string,
+        pageNumber: number = 1,
+        pageSize: number = 20,
+    ) {
+        try {
+            const query = this.usersRepository
+                .createQueryBuilder('user')
+                .leftJoinAndSelect('user.crops', 'crop') // join crops for perfectMatch + return
+                .where('user.role = :role', { role: UserRole.FARMER })
+                .andWhere('user.isDeleted = false');
+
+            // If the caller is a farmer, exclude them
+            if (currentUser.role === UserRole.FARMER) {
+                query.andWhere('user.id != :currentUserId', { currentUserId: currentUser.id });
+            }
+
+            // If search provided, check in farmName, state, country, farmAddress
+            if (search) {
+                query.andWhere(
+                    '(LOWER(user.farmName) LIKE LOWER(:search) OR LOWER(user.state) LIKE LOWER(:search) OR LOWER(user.country) LIKE LOWER(:search) OR LOWER(user.farmAddress) LIKE LOWER(:search))',
+                    { search: `%${search}%` },
+                );
+            }
+
+            // Pagination
+            const totalRecord = await query.getCount();
+
+            // pagination
+            query.skip((pageNumber - 1) * pageSize).take(pageSize);
+
+            // execute query
+            const farmerUsers = await query.getMany();
+
+            // crops of current user (perfect match reference)
+            const userCropIds = (currentUser.crops || []).map((c: Crop) => c.id);
+
+            // mark perfect matches
+            const items = farmerUsers.map((farmer) => {
+                const farmerCropIds = (farmer.crops || []).map((c) => c.id);
+                const hasMatch = farmerCropIds.some((id) => userCropIds.includes(id));
+                return {
+                    id: farmer.id,
+                    firstName: farmer.firstName,
+                    lastName: farmer.lastName,
+                    farmName: farmer.farmName,
+                    state: farmer.state,
+                    country: farmer.country,
+                    farmAddress: farmer.farmAddress,
+                    crops: farmer.crops.map((c) => ({ id: c.id, name: c.name })),
+                    perfectMatch: hasMatch,
+                };
+            });
+
+            // count matches
+            const matchedRecord = items.filter((i) => i.perfectMatch).length;
+
+            // put perfect matches on top
+            const sortedItems = [
+                ...items.filter((i) => i.perfectMatch),
+                ...items.filter((i) => !i.perfectMatch),
+            ];
+
+            return {
+                statusCode: 200,
+                message: sortedItems.length < 1 ? 'No farmer user found' : 'Farmer user(s) fetched successfully',
+                data: {
+                    items: sortedItems,
+                    matchedRecord,
+                    totalRecord,
+                    pageNumber,
+                    pageSize,
+                },
+            };
+        } catch (error) {
+            console.error('Error fetching farmers:', error);
+            handleServiceError(error, 'An error occurred, while fetching farmer users');
+        }
+    }
+
+
 }

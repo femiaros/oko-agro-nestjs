@@ -6,6 +6,7 @@ import { QualityStandard } from 'src/quality-standards/entities/quality-standard
 import { Product } from 'src/products/entities/product.entity';
 import { Event } from 'src/events/entities/event.entity';
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToMany, JoinTable, OneToMany } from 'typeorm';
+import { BuyRequest } from 'src/buy-requests/entities/buy-request.entity';
 
 export enum UserRole {
   FARMER = 'farmer',
@@ -207,4 +208,11 @@ export class User {
   // ✅ Relation: User ↔ Files (one-to-many)
   @OneToMany(() => File, (file) => file.owner, { cascade: true })
   files: File[];
+
+  // ✅ Relation: User(Buyer) ↔ BuyRequests (one-to-many)
+  @OneToMany(() => BuyRequest, (buyRequest) => buyRequest.buyer)
+  buyRequestsAsBuyer: BuyRequest[];
+  // ✅ Relation: User(Seller) ↔ BuyRequests (one-to-many)
+  @OneToMany(() => BuyRequest, (buyRequest) => buyRequest.seller)
+  buyRequestsAsSeller: BuyRequest[];
 }

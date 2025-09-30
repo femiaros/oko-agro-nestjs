@@ -12,6 +12,7 @@ import { Crop } from 'src/crops/entities/crop.entity';
 import { User } from 'src/users/entities/user.entity';
 import { FarmerProductPhotoFile } from 'src/farmer-product-photo-files/entities/farmer-product-photo-file.entity';
 import { Event } from 'src/events/entities/event.entity';
+import { BuyRequest } from 'src/buy-requests/entities/buy-request.entity';
 
 export enum ProductQuantityUnit {
   KILOGRAM = 'kilogram',
@@ -56,6 +57,9 @@ export class Product {
 
   @OneToOne(() => Event, (event) => event.product, { nullable: true, cascade: true })
   harvestEvent: Event | null;
+
+  @OneToMany(() => BuyRequest, (buyRequest) => buyRequest.product)
+  buyRequests: BuyRequest[];
 
   @Column({ type: 'boolean', default: false })
   isDeleted: boolean;

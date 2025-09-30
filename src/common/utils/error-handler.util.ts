@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
@@ -17,6 +18,7 @@ import {
 export function handleServiceError(error: any, fallbackMessage: string) {
     if (
         error instanceof NotFoundException ||
+        error instanceof ForbiddenException ||
         error instanceof BadRequestException ||
         error instanceof ConflictException ||
         error instanceof UnauthorizedException

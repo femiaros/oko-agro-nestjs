@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { handleServiceError } from 'src/common/utils/error-handler.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -34,7 +34,7 @@ export class EventsService {
         }
     }
 
-    async updateEvent(dto: UpdateEventDto): Promise<any> {
+    async updateEvent(dto: UpdateEventDto, currentUser: User): Promise<any> {
         try {
             const event = await this.eventsRepository.findOne({ 
                 where: { 
@@ -45,6 +45,10 @@ export class EventsService {
             });
 
             if (!event) throw new NotFoundException('Event not found or has been deleted');
+
+            if (!event.owner || event.owner.id !== currentUser.id) {
+                throw new ForbiddenException('This user is not authorized to update this event');
+            }
 
             for (const [key, value] of Object.entries(dto)) {
                 if (value !== undefined && value !== null) {

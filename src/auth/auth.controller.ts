@@ -7,6 +7,7 @@ import { ForgotPasswordDto } from './dtos/forgot-password.dto';
 import { ResetPasswordDto } from './dtos/reset-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 @Controller('auth')
 export class AuthController {
@@ -57,6 +58,7 @@ export class AuthController {
     }
 
     // Proctected
+    @ApiBearerAuth()
     @UseGuards(JwtAuthGuard)
     @Get('profile')
     @HttpCode(HttpStatus.OK)

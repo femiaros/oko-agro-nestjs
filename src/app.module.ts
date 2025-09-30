@@ -14,6 +14,7 @@ import { QualityStandardsModule } from './quality-standards/quality-standards.mo
 import { ProductsModule } from './products/products.module';
 import { FarmerProductPhotoFilesModule } from './farmer-product-photo-files/farmer-product-photo-files.module';
 import { EventsModule } from './events/events.module';
+import { BuyRequestsModule } from './buy-requests/buy-requests.module';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { EventsModule } from './events/events.module';
     TypeOrmModule.forRoot(ormconfig),
     UsersModule, AuthModule, CropsModule, FilesModule, MailerModule, 
     CertificationsModule, QualityStandardsModule, ProductsModule, 
-    FarmerProductPhotoFilesModule, EventsModule
+    FarmerProductPhotoFilesModule, EventsModule, BuyRequestsModule
   ],
   controllers: [AppController],
   providers: [AppService],

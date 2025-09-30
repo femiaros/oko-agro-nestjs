@@ -75,7 +75,7 @@ export class ProductsService {
             return {
                 statusCode: 201,
                 message: 'Product created successfully!',
-                data: savedProduct
+                data: instanceToPlain(savedProduct)
             };
         }catch(error){
             handleServiceError(error, 'An error occurred');
@@ -92,16 +92,30 @@ export class ProductsService {
                 } 
             });
 
-            if (!product) throw new NotFoundException('Product not found');
+            if (!product) throw new NotFoundException('Product not found or doesnot belong to this user');
 
             for (const [key, value] of Object.entries(dto)) {
                 if (key === 'productId') continue; // skip productId
-                if (key === 'harvestDate') continue; // skip harvestDate
+                // if (key === 'cropId') continue; // skip cropId
 
                 if (value !== undefined && value !== null) {
                     (product as any)[key] = value;
                 }
             }
+
+            // Handle cropType change
+            // if (dto.cropId) {
+            //     const crop = await this.cropsRepository.findOne({
+            //         where: { id: dto.cropId },
+            //     });
+
+            //     if (!crop) {
+            //         throw new BadRequestException('Invalid cropId');
+            //     }
+
+            //     product.cropType = crop;
+            // }
+
             const savedProduct = await this.productsRepository.save(product);
 
             // if (dto.harvestDate) {
