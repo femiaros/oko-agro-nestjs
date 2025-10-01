@@ -27,6 +27,11 @@ export class BuyRequestsService {
     async create(dto: CreateBuyRequestDto, buyer: User): Promise<any> {
         const { cropId, qualityStandardId, productId, sellerId, ...rest } = dto;
         try{
+            if (dto.isGeneral){
+                if(dto.sellerId) throw new BadRequestException(`General buy request doesn't require a sellerId to be provided at initiation`);
+                if(dto.productId) throw new BadRequestException(`General buy request doesn't require a productId to be provided at initiation`);
+            }
+
             const crop = await this.cropsRepository.findOne({ where: { id: dto.cropId } });
             if (!crop) throw new BadRequestException('Invalid cropId');
 
@@ -45,12 +50,13 @@ export class BuyRequestsService {
             if (dto.productId) {
                 product = await this.productsRepository.findOne({
                     where: { id: dto.productId, isDeleted: false },
+                    relations: ['owner', 'cropType']
                 });
                 if (!product) throw new BadRequestException('Invalid productId');
             }
 
             if (dto.productId && product && product.cropType.id !== dto.cropId){
-                throw new BadRequestException("Farmer's product crop type should match the crop type required on BuyRequest");
+                throw new BadRequestException(`Seller's product crop type: ${product.cropType.name} should match the crop type required on BuyRequest`);
             }
 
             const requestNumber = await this.generateRequestNumber();

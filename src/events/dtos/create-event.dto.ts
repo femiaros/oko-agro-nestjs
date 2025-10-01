@@ -1,6 +1,7 @@
-import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, MinDate } from 'class-validator';
 import { EventReferenceType } from '../entities/event.entity';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export class CreateEventDto {
   @ApiProperty({ example: 'Half year harvest', description: 'Name of event' })
@@ -24,5 +25,7 @@ export class CreateEventDto {
 
   @ApiProperty({ example: '2025-10-01', description: 'EventDate (YYYY-MM-DD)' })
   @IsDateString()
+  @Type(() => Date)
+  @MinDate(() => new Date(), { message: 'eventDate must be a future date' })
   eventDate: Date;
 }

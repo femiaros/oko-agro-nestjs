@@ -1,6 +1,7 @@
-import { IsArray, IsDateString, IsEnum, IsNotEmpty, IsNumberString, IsOptional, IsString, ArrayMinSize, ArrayMaxSize } from 'class-validator';
+import { IsArray, IsDateString, IsEnum, IsNotEmpty, IsNumberString, IsOptional, IsString, ArrayMinSize, ArrayMaxSize, MinDate } from 'class-validator';
 import { ProductPriceCurrency, ProductQuantityUnit } from '../entities/product.entity';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export class CreateProductDto {
   @ApiProperty({ example: 'Sweet kidney beans', description: 'Name of event' })
@@ -32,8 +33,11 @@ export class CreateProductDto {
   @IsOptional()
   priceCurrency?: ProductPriceCurrency;
 
+  @ApiProperty({ example: '2025-10-01', description: 'EventDate (YYYY-MM-DD)' })
   @IsDateString()
   @IsOptional()
+  @Type(() => Date)
+  @MinDate(() => new Date(), { message: 'harvestDate must be a future date' })
   harvestDate?: Date;
 
   @ApiProperty({ example: 'No 3 ojoau strt, Lagos, Nigeria', description: 'Location address (optional)' })

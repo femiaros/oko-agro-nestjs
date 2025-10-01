@@ -1,8 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { handleServiceError } from 'src/common/utils/error-handler.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Event } from '../events/entities/event.entity';
+import { Event, EventStatus } from '../events/entities/event.entity';
 import { User } from '../users/entities/user.entity';
 import { Product } from '../products/entities/product.entity';
 import { CreateEventDto } from './dtos/create-event.dto';
@@ -16,10 +16,30 @@ export class EventsService {
 
     async createEvent(dto: CreateEventDto & { owner: User; product?: Product }): Promise<any> {
         try {
+            const eventDate = new Date(dto.eventDate);
+
+            // Normalize today (ignoring time)
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const eventDay = new Date(eventDate);
+            eventDay.setHours(0, 0, 0, 0);
+
+            let status: EventStatus;
+
+            if (eventDay.getTime() === today.getTime()) {
+                status = EventStatus.TODAY;
+            } else if (eventDay.getTime() > today.getTime()) {
+                status = EventStatus.UPCOMING;
+            } else {
+                throw new BadRequestException('eventDate must be today or a future date');
+            }
+
             const event = this.eventsRepository.create({
                 ...dto,
                 owner: dto.owner,
                 product: dto.product ?? null,
+                status
             });
 
             const savedEvent = await this.eventsRepository.save(event);
@@ -30,7 +50,7 @@ export class EventsService {
                 data: savedEvent,
             };
         } catch (error) {
-            handleServiceError(error, 'An error occurred');
+            handleServiceError(error, 'An error occurred while creating event');
         }
     }
 
@@ -41,7 +61,8 @@ export class EventsService {
                     id: dto.eventId, 
                     // owner: { id: user.id },
                     isDeleted: false
-                }
+                },
+                relations: ['owner', 'product']
             });
 
             if (!event) throw new NotFoundException('Event not found or has been deleted');
@@ -51,8 +72,29 @@ export class EventsService {
             }
 
             for (const [key, value] of Object.entries(dto)) {
+                if (key === 'eventId') continue; // skip eventId
+
                 if (value !== undefined && value !== null) {
                     (event as any)[key] = value;
+
+                    // ✅ If updating eventDate, also update status
+                    if (key === 'eventDate') {
+                        const newDate = new Date(value as string);
+
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+
+                        const eventDay = new Date(newDate);
+                        eventDay.setHours(0, 0, 0, 0);
+
+                        if (eventDay.getTime() === today.getTime()) {
+                            event.status = EventStatus.TODAY;
+                        } else if (eventDay.getTime() > today.getTime()) {
+                            event.status = EventStatus.UPCOMING;
+                        } else {
+                            throw new BadRequestException('eventDate must be today or a future date');
+                        }
+                    }
                 }
             }
 
@@ -113,17 +155,21 @@ export class EventsService {
         }
     }
 
-    async removeEvent(id: string, user: User): Promise<any> {
+    async removeEvent(id: string, currentUser: User): Promise<any> {
         try{
             const event = await this.eventsRepository.findOne({ 
                 where: { 
                     id, 
-                    owner: { id: user.id },
                     isDeleted: false,
-                } 
+                },
+                relations: ['owner', 'product']
             });
 
-            if (!event) throw new NotFoundException("Event not found or event don't belong to current user");
+            if (!event) throw new NotFoundException("Event not found");
+
+            if (!event.owner || event.owner.id !== currentUser.id) {
+                throw new ForbiddenException('This user is not authorized to deleted this event');
+            }
 
             event.isDeleted = true;
             await this.eventsRepository.save(event);

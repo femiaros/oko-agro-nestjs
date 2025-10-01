@@ -9,7 +9,7 @@ import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { UpdateBuyRequestDto } from './dtos/update-buy-request.dto';
 import { UpdateBuyRequestStatusDto } from './dtos/update-buy-request-status.dto';
 import { BuyRequestStatus } from './entities/buy-request.entity';
-import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -59,6 +59,9 @@ export class BuyRequestsController {
 
     // 🔹 Fetch requests linked to current user (farmer → seller / processor → buyer)
     @ApiOperation({ summary: 'Fetch requests linked to current user: (farmer → seller / processor → buyer) both can access' })
+    @ApiQuery({ name: 'status', required: false, type: String, description: `Search by buy request's status field` })
+    @ApiQuery({ name: 'pageNumber', required: false, type: Number, description: 'Page number (default: 1)' })
+    @ApiQuery({ name: 'pageSize', required: false, type: Number, description: 'Page size (default: 20)' })
     @Get('my-requests')
     @HttpCode(HttpStatus.OK)
     async findUserBuyRequests(
