@@ -33,11 +33,9 @@ export class CreateProductDto {
   @IsOptional()
   priceCurrency?: ProductPriceCurrency;
 
-  @ApiProperty({ example: '2025-10-01', description: 'EventDate (YYYY-MM-DD)' })
+  @ApiProperty({ example: '2025-10-01', description: 'harvestDate (YYYY-MM-DD)' })
   @IsDateString()
   @IsOptional()
-  @Type(() => Date)
-  @MinDate(() => new Date(), { message: 'harvestDate must be a future date' })
   harvestDate?: Date;
 
   @ApiProperty({ example: 'No 3 ojoau strt, Lagos, Nigeria', description: 'Location address (optional)' })

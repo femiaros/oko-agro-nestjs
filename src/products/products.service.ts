@@ -30,6 +30,12 @@ export class ProductsService {
         try{
             const { cropId, photos, ...productData } = dto;
 
+            // Check if harvestDate is in the past
+            const today = new Date();
+            if (dto.harvestDate && new Date(dto.harvestDate) <= today) {
+                throw new BadRequestException('harvestDate must be a future date');
+            }
+
             // Allowed photosize - 2mb
             const photosize = 2 * 1024 * 1024;
             // Validate photo strings

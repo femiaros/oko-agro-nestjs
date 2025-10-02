@@ -39,10 +39,10 @@ export class BuyRequestsService {
             if (dto.qualityStandardId) {
                 qualityStandard = await this.qualityStandardRepository.findOne({
                     where: { id: dto.qualityStandardId, },
-            });
+                });
 
-            if (dto.qualityStandardId && !qualityStandard)
-                throw new BadRequestException('Invalid qualityStandardId');
+                if (dto.qualityStandardId && !qualityStandard)
+                    throw new BadRequestException('Invalid qualityStandardId');
             }
 
             let product: Product | null = null;
@@ -223,7 +223,7 @@ export class BuyRequestsService {
 
             return {
                 statusCode: 200,
-                message: `BuyRequest ${dto.status} successfully`,
+                message: `BuyRequest status updated successfully`,
                 data: instanceToPlain(savedBuyRequest)
             };
         } catch (error) {
@@ -325,9 +325,35 @@ export class BuyRequestsService {
         }
     }
 
+    async findBuyRequest(buyRequestId: string): Promise<any> {
+        try {
+            const buyRequest = await this.buyRequestsRepository.findOne({
+                where: {
+                    id: buyRequestId,
+                    isDeleted: false,
+                },
+                relations: ['buyer', 'seller', 'product', 'qualityStandardType']
+            });
+
+            if (!buyRequest) {
+                throw new NotFoundException(`buyRequest not found`);
+            }
+
+            return {
+                statusCode: 200,
+                message: 'BuyRequest fetched successfully',
+                data: buyRequest,
+            };
+        } catch (error) {
+            handleServiceError(error, 'An error occurred while fetching buyRequest');
+        }
+    }
+
     async deleteRequest(id: string, currentUser: User): Promise<any> {
         try {
-            const buyRequest = await this.buyRequestsRepository.findOne({ where: { id } });
+            const buyRequest = await this.buyRequestsRepository.findOne({ 
+                where: { id } 
+            });
             if (!buyRequest || buyRequest.isDeleted) throw new NotFoundException('BuyRequest not found');
 
             if (currentUser.id !== buyRequest.buyer.id)

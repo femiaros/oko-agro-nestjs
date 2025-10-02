@@ -7,7 +7,8 @@ import { User, UserRole } from 'src/users/entities/user.entity';
 import { RolesGuard } from 'src/auth/guards/roles-guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { UpdateEventDto } from './dtos/update-event.dto';
-import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { EventCreateResponseDto, EventDeleteResponseDto, EventFindResponseDto, EventUpdateResponseDto, EventUserListResponseDto } from './dtos/response.dto';
 
 @ApiBearerAuth()
 @Controller('events')
@@ -16,6 +17,7 @@ export class EventsController {
     constructor(private readonly eventsService: EventsService) {}
 
     @ApiOperation({ summary: 'Create a new Event' })
+    @ApiResponse({ status: 201, description: "Successfully created event", type: EventCreateResponseDto })
     @Post('create')
     // @Roles(UserRole.FARMER,UserRole.PROCESSOR)
     // @UseGuards(RolesGuard)
@@ -25,6 +27,7 @@ export class EventsController {
     }
 
     @ApiOperation({ summary: 'Update a Event (Only user who created the event can update)' })
+    @ApiResponse({ status: 200, description: "Successfully updated event", type: EventUpdateResponseDto })
     @Patch('update')
     @HttpCode(HttpStatus.OK)
     async updateProduct(@Body() dto: UpdateEventDto, @CurrentUser() currentUser: User) {
@@ -32,6 +35,7 @@ export class EventsController {
     }
 
     @ApiOperation({ summary: 'Fetch event with :eventId' })
+    @ApiResponse({ status: 200, description: "Successfully fetched event", type: EventFindResponseDto })
     @Get(':eventId')
     @HttpCode(HttpStatus.OK)
     async findEvent(@Param('eventId') eventId: string) {
@@ -39,6 +43,7 @@ export class EventsController {
     }
 
     @ApiOperation({ summary: `Fetch a user's list of events with :userId` })
+    @ApiResponse({ status: 200, description: "Successfully fetched user's events", type: EventUserListResponseDto })
     @Get('user/:userId')
     @HttpCode(HttpStatus.OK)
     async findUserEvents(@Param('userId') userId: string) {
@@ -46,6 +51,7 @@ export class EventsController {
     }
 
     @ApiOperation({ summary: `Delete event (Only the owner can deleted)` })
+    @ApiResponse({ status: 200, description: "Successfully deleted event", type: EventDeleteResponseDto })
     @Delete(':eventId')
     @HttpCode(HttpStatus.OK)
     async removeEvent(@Param('eventId') eventId: string, @CurrentUser() currentUser: User) {

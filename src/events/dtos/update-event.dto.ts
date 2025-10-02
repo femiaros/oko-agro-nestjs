@@ -20,10 +20,15 @@ export class UpdateEventDto {
     @IsOptional()
     description?: string;
 
-    @ApiProperty({ example: '2025-10-01', description: 'EventDate (YYYY-MM-DD) (optional)' })
+    // @ApiProperty({ example: '2025-10-01', description: 'EventDate (YYYY-MM-DD) (optional)' })
+    // @IsDateString()
+    // @IsOptional()
+    // @Type(() => Date)
+    // @MinDate(() => new Date(), { message: 'eventDate must be a future date' })
+    // eventDate?: Date;
+
+    @ApiProperty({ example: '2025-10-01', description: 'EventDate (YYYY-MM-DD)' })
     @IsDateString()
     @IsOptional()
-    @Type(() => Date)
-    @MinDate(() => new Date(), { message: 'eventDate must be a future date' })
     eventDate?: Date;
 }

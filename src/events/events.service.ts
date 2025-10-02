@@ -16,10 +16,16 @@ export class EventsService {
 
     async createEvent(dto: CreateEventDto & { owner: User; product?: Product }): Promise<any> {
         try {
+            // Check if eventDate is in the past
+            const today = new Date();
+            if (new Date(dto.eventDate) <= today) {
+                throw new BadRequestException('eventDate must be a future date');
+            }
+
             const eventDate = new Date(dto.eventDate);
 
             // Normalize today (ignoring time)
-            const today = new Date();
+            // const today = new Date();
             today.setHours(0, 0, 0, 0);
 
             const eventDay = new Date(eventDate);
@@ -56,6 +62,12 @@ export class EventsService {
 
     async updateEvent(dto: UpdateEventDto, currentUser: User): Promise<any> {
         try {
+            // Check if eventDate is in the past
+            const today = new Date();
+            if (dto.eventDate && new Date(dto.eventDate) <= today) {
+                throw new BadRequestException('eventDate must be a future date');
+            }
+
             const event = await this.eventsRepository.findOne({ 
                 where: { 
                     id: dto.eventId, 
@@ -80,6 +92,7 @@ export class EventsService {
                     // ✅ If updating eventDate, also update status
                     if (key === 'eventDate') {
                         const newDate = new Date(value as string);
+                        // event.eventDate = newDate;
 
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
@@ -174,6 +187,10 @@ export class EventsService {
             event.isDeleted = true;
             await this.eventsRepository.save(event);
 
+            return {
+                statusCode: 200,
+                message: 'Event deleted successfully',
+            };
 
         }catch (error) {
             handleServiceError(error, 'An error occurred');

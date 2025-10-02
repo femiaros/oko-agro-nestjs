@@ -23,9 +23,18 @@ export class CreateEventDto {
   @IsOptional()
   referenceId?: string;
 
+  // @ApiProperty({ example: '2025-10-01', description: 'EventDate (YYYY-MM-DD)' })
+  // @IsDateString()
+  // @Type(() => Date)
+  // @MinDate(() => new Date(), { message: 'eventDate must be a future date' })
+  // eventDate: Date;
+
+  // @ApiProperty({ example: '2025-10-08T19:04:46.650Z', description: 'EventDate (YYYY-MM-DD)' })
+  // @IsDateString()
+  // @MinDate(() => new Date(), { message: 'eventDate must be a future date' })
+  // eventDate: Date;
+
   @ApiProperty({ example: '2025-10-01', description: 'EventDate (YYYY-MM-DD)' })
   @IsDateString()
-  @Type(() => Date)
-  @MinDate(() => new Date(), { message: 'eventDate must be a future date' })
   eventDate: Date;
 }

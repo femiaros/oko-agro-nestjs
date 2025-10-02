@@ -2,7 +2,8 @@ import { Controller, DefaultValuePipe, Get, HttpCode, HttpStatus, Param, ParseIn
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { FarmerListResponseDto, ProcessorListResponseDto, UserFindResponseDto } from './dtos/response.dto';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -11,6 +12,7 @@ export class UsersController {
     constructor(private readonly usersService: UsersService) {}
 
     @ApiOperation({ summary: `Fetch processors on the system` })
+    @ApiResponse({ status: 200, description: "Successfully fetched processors", type: ProcessorListResponseDto })
     @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by farmName, state, country, or farmAddress' })
     @ApiQuery({ name: 'pageNumber', required: false, type: Number, description: 'Page number (default: 1)' })
     @ApiQuery({ name: 'pageSize', required: false, type: Number, description: 'Page size (default: 20)' })
@@ -26,6 +28,7 @@ export class UsersController {
     }
 
     @ApiOperation({ summary: `Fetch farmers on the system` })
+    @ApiResponse({ status: 200, description: "Successfully fetched Farmers", type: FarmerListResponseDto })
     @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by farmName, state, country, or farmAddress' })
     @ApiQuery({ name: 'pageNumber', required: false, type: Number, description: 'Page number (default: 1)' })
     @ApiQuery({ name: 'pageSize', required: false, type: Number, description: 'Page size (default: 20)' })
@@ -41,9 +44,10 @@ export class UsersController {
     }
 
     @ApiOperation({ summary: 'Fetch user on the system with :userId' })
+    @ApiResponse({ status: 200, description: "Successfully fetched user", type: UserFindResponseDto })
     @Get(':userId')
     @HttpCode(HttpStatus.OK)
-    getProfile(@Param('userId') userId: string){
+    findUser(@Param('userId') userId: string){
         return this.usersService.findUser(userId);
     }
 }
