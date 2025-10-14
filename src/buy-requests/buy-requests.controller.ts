@@ -13,7 +13,7 @@ import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swag
 import { BuyRequestCreateResponseDto, BuyRequestDeleteResponseDto, 
     BuyRequestGeneralListResponseDto, BuyRequestListResponseDto, 
     BuyRequestUpdateResponseDto, BuyRequestUpdateStatusResponseDto,
-    BuyRequestFindResponseDto
+    BuyRequestFindResponseDto, BuyRequestFindByUserIdResponseDto
 } from './dtos/response.dto';
 
 @ApiBearerAuth()
@@ -74,13 +74,13 @@ export class BuyRequestsController {
     @ApiQuery({ name: 'pageSize', required: false, type: Number, description: 'Page size (default: 20)' })
     @Get('my-requests')
     @HttpCode(HttpStatus.OK)
-    async findUserBuyRequests(
+    async findMyBuyRequests(
         @CurrentUser() currentUser: User,
         @Query('status') status?: BuyRequestStatus,
         @Query('pageNumber', new DefaultValuePipe(1), ParseIntPipe) pageNumber?: number,
         @Query('pageSize', new DefaultValuePipe(20), ParseIntPipe) pageSize?: number,
     ) {
-        return this.buyRequestsService.findUserBuyRequests(
+        return this.buyRequestsService.findMyBuyRequests(
             currentUser,
             status,
             pageNumber,
@@ -94,6 +94,16 @@ export class BuyRequestsController {
     @HttpCode(HttpStatus.OK)
     async findBuyRequest(@Param('buyRequestId') buyRequestId: string) {
         return this.buyRequestsService.findBuyRequest(buyRequestId);
+    }
+
+    @ApiOperation({ summary: `Fetch a user's list buyRequests with :userId` })
+    @ApiResponse({ status: 200, description: "Successfully fetched user's buyRequests", type: BuyRequestFindByUserIdResponseDto })
+    @Get('user/:userId')
+    @Roles(UserRole.PROCESSOR, UserRole.FARMER)
+    @UseGuards(RolesGuard)
+    @HttpCode(HttpStatus.OK)
+    async findUserBuyRequests(@Param('userId') userId: string) {
+        return this.buyRequestsService.findUserBuyRequests(userId);
     }
 
     // 🔹 Delete a request (soft delete, processors only)

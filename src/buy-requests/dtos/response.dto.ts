@@ -67,6 +67,14 @@ export class BuyRequestFindResponseDto extends ApiResponseDto<BuyRequest> {
     declare data: BuyRequest;
 }
 
+export class BuyRequestFindByUserIdResponseDto extends ApiResponseDto<BuyRequest[]> {
+    @ApiProperty({ example: 'User buy requests fetched successfully' })
+    declare message: string;
+
+    @ApiProperty({ type: () => [BuyRequest] })
+    declare data: BuyRequest[];
+}
+
 export class BuyRequestDeleteResponseDto {
     @ApiProperty({ example: 200 })
     statusCode: number;

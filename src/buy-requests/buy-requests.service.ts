@@ -257,7 +257,7 @@ export class BuyRequestsService {
         }
     }
 
-    async findUserBuyRequests(
+    async findMyBuyRequests(
         currentUser: User,
         status?: BuyRequestStatus,
         pageNumber: number = 1,
@@ -342,10 +342,61 @@ export class BuyRequestsService {
             return {
                 statusCode: 200,
                 message: 'BuyRequest fetched successfully',
-                data: buyRequest,
+                data: instanceToPlain(buyRequest),
             };
         } catch (error) {
             handleServiceError(error, 'An error occurred while fetching buyRequest');
+        }
+    }
+
+    async findUserBuyRequests(userId: string): Promise<any> {
+        try {
+            // Check if user exists
+            const user = await this.usersService.findUserEntity(userId);
+            if (!user) throw new NotFoundException('User not found');
+
+            // Determine which relation to filter by (buyer/seller)
+            const query = this.buyRequestsRepository.createQueryBuilder('buyRequest')
+                .leftJoinAndSelect('buyRequest.cropType', 'cropType')
+                .leftJoinAndSelect('buyRequest.qualityStandardType', 'qualityStandardType')
+                .leftJoinAndSelect('buyRequest.buyer', 'buyer')
+                .leftJoinAndSelect('buyRequest.seller', 'seller')
+                .leftJoinAndSelect('buyRequest.product', 'product')
+                .where('buyRequest.isDeleted = false');
+
+            if (user.role === UserRole.FARMER) {
+                // Farmer: seller side — only accepted or rejected requests
+                query.andWhere('seller.id = :userId', { userId })
+                    .andWhere('buyRequest.status IN (:...statuses)', {
+                        statuses: [BuyRequestStatus.ACCEPTED, BuyRequestStatus.REJECTED],
+                    });
+            } else if (user.role === UserRole.PROCESSOR) {
+                // Processor: buyer side — can see all their requests
+                query.andWhere('buyer.id = :userId', { userId })
+                    .andWhere('buyRequest.status IN (:...statuses)', {
+                        statuses: [
+                            BuyRequestStatus.PENDING,
+                            BuyRequestStatus.ACCEPTED,
+                            BuyRequestStatus.REJECTED,
+                            BuyRequestStatus.CANCELLED,
+                        ],
+                    });
+            } else {
+                throw new BadRequestException('User role not authorized to view buy requests');
+            }
+
+            const buyRequests = await query
+                .orderBy('buyRequest.createdAt', 'DESC')
+                .getMany();
+
+
+            return {
+                statusCode: 200,
+                message: 'User buy requests fetched successfully',
+                data: buyRequests
+            };
+        } catch (error) {
+            handleServiceError(error, 'An error occurred while fetching user buy requests');
         }
     }
 
