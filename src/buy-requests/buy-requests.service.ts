@@ -267,12 +267,16 @@ export class BuyRequestsService {
             const skip = (pageNumber - 1) * pageSize;
 
             // Determine allowed statuses based on role
-            let allowedStatuses: BuyRequestStatus[] = [];
+            let allowedStatuses: BuyRequestStatus[];
 
             if (currentUser.role === UserRole.FARMER) {
                 // Farmers can only see requests where they are the seller
                 // and only if status is ACCEPTED or REJECTED
-                allowedStatuses = [BuyRequestStatus.ACCEPTED, BuyRequestStatus.REJECTED];
+                allowedStatuses = [
+                    BuyRequestStatus.PENDING,
+                    BuyRequestStatus.ACCEPTED, 
+                    BuyRequestStatus.REJECTED
+                ];
             } else if (currentUser.role === UserRole.PROCESSOR) {
                 // Processors (buyers) can see all
                 allowedStatuses = [
@@ -290,25 +294,33 @@ export class BuyRequestsService {
                 throw new ForbiddenException(`You are not allowed to view requests with status ${status}`);
             }
 
-            const where: any = {
-                isDeleted: false,
-                ...(status ? { status } : { status: In(allowedStatuses) }),
-            };
+            // QueryBuilder for robust relational filtering
+            const qb = this.buyRequestsRepository
+                .createQueryBuilder('buyRequest')
+                .leftJoinAndSelect('buyRequest.cropType', 'cropType')
+                .leftJoinAndSelect('buyRequest.qualityStandardType', 'qualityStandardType')
+                .leftJoinAndSelect('buyRequest.buyer', 'buyer')
+                .leftJoinAndSelect('buyRequest.seller', 'seller')
+                .leftJoinAndSelect('buyRequest.product', 'product')
+                .where('buyRequest.isDeleted = false');
 
-            // Add role-based ownership condition
-            if (currentUser.role === UserRole.FARMER) {
-                where.seller = { id: currentUser.id };
-            } else if (currentUser.role === UserRole.PROCESSOR) {
-                where.buyer = { id: currentUser.id };
+            if (status) {
+                qb.andWhere('buyRequest.status = :status', { status });
+            } else {
+                qb.andWhere('buyRequest.status IN (:...statuses)', { statuses: allowedStatuses });
             }
 
-            const [items, totalRecord] = await this.buyRequestsRepository.findAndCount({
-                where,
-                relations: ['cropType', 'qualityStandardType', 'buyer', 'seller', 'product'],
-                order: { createdAt: 'DESC' },
-                skip,
-                take: pageSize,
-            });
+            if (currentUser.role === UserRole.FARMER) {
+                qb.andWhere('buyRequest.sellerId = :userId', { userId: currentUser.id });
+            } else if (currentUser.role === UserRole.PROCESSOR) {
+                qb.andWhere('buyRequest.buyerId = :userId', { userId: currentUser.id });
+            }
+
+            qb.orderBy('buyRequest.createdAt', 'DESC')
+                .skip(skip)
+                .take(pageSize);
+
+            const [items, totalRecord] = await qb.getManyAndCount();
 
             return {
                 statusCode: 200,
@@ -368,7 +380,11 @@ export class BuyRequestsService {
                 // Farmer: seller side — only accepted or rejected requests
                 query.andWhere('seller.id = :userId', { userId })
                     .andWhere('buyRequest.status IN (:...statuses)', {
-                        statuses: [BuyRequestStatus.ACCEPTED, BuyRequestStatus.REJECTED],
+                        statuses: [
+                            BuyRequestStatus.PENDING,
+                            BuyRequestStatus.ACCEPTED, 
+                            BuyRequestStatus.REJECTED
+                        ],
                     });
             } else if (user.role === UserRole.PROCESSOR) {
                 // Processor: buyer side — can see all their requests
