@@ -43,6 +43,14 @@ export class BuyRequestUpdateStatusResponseDto extends ApiResponseDto<BuyRequest
     declare data: BuyRequest;
 }
 
+export class BuyRequestUpdateOrderStateResponseDto extends ApiResponseDto<BuyRequest> {
+    @ApiProperty({ example: 'Order state updated to awaiting_shipping' })
+    declare message: string;
+
+    @ApiProperty({ type: () => BuyRequest })
+    declare data: BuyRequest;
+}
+
 export class BuyRequestGeneralListResponseDto extends ApiResponseDto<BuyRequest[]> {
     @ApiProperty({ example: 'General buy requests fetched successfully' })
     declare message: string;

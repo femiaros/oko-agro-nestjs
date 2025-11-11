@@ -155,7 +155,7 @@ export class AuthService {
         }
 
         return {
-            statusCode: 200,
+            statusCode: 201,
             message: 'Registration completed, verification OTP sent successfully!',
             data: { id: savedUser.id },
         };

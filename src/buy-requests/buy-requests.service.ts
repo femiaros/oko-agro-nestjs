@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, MoreThan, Repository } from 'typeorm';
-import { BuyRequest, BuyRequestStatus } from './entities/buy-request.entity';
+import { BuyRequest, BuyRequestStatus, OrderState } from './entities/buy-request.entity';
 import { Crop } from 'src/crops/entities/crop.entity';
 import { QualityStandard } from 'src/quality-standards/entities/quality-standard.entity';
 import { Product } from 'src/products/entities/product.entity';
@@ -12,6 +12,7 @@ import { UsersService } from 'src/users/users.service';
 import { instanceToPlain } from 'class-transformer';
 import { UpdateBuyRequestStatusDto } from './dtos/update-buy-request-status.dto';
 import { UpdateBuyRequestDto } from './dtos/update-buy-request.dto';
+import { UpdateOrderStateDto } from './dtos/update-order-state.dto';
 
 @Injectable()
 export class BuyRequestsService {
@@ -190,6 +191,9 @@ export class BuyRequestsService {
                 buyRequest.status = BuyRequestStatus.ACCEPTED;
                 buyRequest.seller = currentUser;
                 buyRequest.product = product;
+                // OrderState updates
+                buyRequest.orderState = OrderState.AWAITING_SHIPPING;
+                buyRequest.orderStateTime = new Date();
             }
             // Case: Directed buyrequest
             else {
@@ -216,6 +220,9 @@ export class BuyRequestsService {
                     }
 
                     buyRequest.product = product;
+                    // OrderState updates
+                    buyRequest.orderState = OrderState.AWAITING_SHIPPING;
+                    buyRequest.orderStateTime = new Date();
                 }
             }
 
@@ -228,6 +235,65 @@ export class BuyRequestsService {
             };
         } catch (error) {
             handleServiceError(error, 'An error occurred, while updating BuyRequest status');
+        }
+    }
+
+    async updateOrderState(dto: UpdateOrderStateDto, currentUser: User): Promise<any> {
+        try {
+                const buyRequest = await this.buyRequestsRepository.findOne({
+                    where: { id: dto.buyRequestId, isDeleted: false },
+                    relations: ['buyer', 'seller'],
+                });
+
+                if (!buyRequest) {
+                    throw new NotFoundException('BuyRequest not found');
+                }
+
+            // ROLE-BASED LOGIC
+            const isAdmin = currentUser.role === UserRole.ADMIN;
+            const isBuyer = currentUser.id === buyRequest.buyer?.id;
+
+            // 1️⃣ Only Admin or Buyer-Linked-to-Request can access this endpoint
+            if (!isAdmin && !isBuyer) {
+                throw new ForbiddenException('You are not authorized to update order state for this request');
+            }
+
+            // 2️⃣ Handle state-specific permissions
+            if (dto.orderState === OrderState.IN_TRANSIT && !isAdmin) {
+                throw new ForbiddenException('Only admin can set order state to in_transit');
+            }
+
+            if (dto.orderState === OrderState.AWAITING_SHIPPING) {
+                throw new ForbiddenException('Order cannot be manually reverted to awaiting_shipping');
+            }
+
+            if (dto.orderState === OrderState.DELIVERED && !isAdmin && !isBuyer) {
+                throw new ForbiddenException('Only buyer or admin can mark as DELIVERED');
+            }
+
+            if (dto.orderState === OrderState.COMPLETED) {
+                throw new ForbiddenException('Order completion is automated');
+            }
+
+            // ✅ HANDLE ADMIN CONFIRM PAYMENT → IN_TRANSIT
+            if (isAdmin && dto.orderState === OrderState.IN_TRANSIT) {
+                buyRequest.paymentConfirmed = true;
+                buyRequest.paymentConfirmedAt = new Date();
+            }
+
+            // ✅ Update orderState + orderStateTime
+            buyRequest.orderState = dto.orderState;
+            buyRequest.orderStateTime = new Date();
+
+            const updatedBuyRequest = await this.buyRequestsRepository.save(buyRequest);
+
+            return {
+                statusCode: 200,
+                message: `Order state updated to ${dto.orderState}`,
+                data: instanceToPlain(updatedBuyRequest),
+            };
+        } catch (error) {
+            handleServiceError(error, 'An error occurred while updating order state');
         }
     }
 

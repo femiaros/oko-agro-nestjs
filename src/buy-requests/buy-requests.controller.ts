@@ -13,8 +13,10 @@ import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swag
 import { BuyRequestCreateResponseDto, BuyRequestDeleteResponseDto, 
     BuyRequestGeneralListResponseDto, BuyRequestListResponseDto, 
     BuyRequestUpdateResponseDto, BuyRequestUpdateStatusResponseDto,
-    BuyRequestFindResponseDto, BuyRequestFindByUserIdResponseDto
+    BuyRequestFindResponseDto, BuyRequestFindByUserIdResponseDto,
+    BuyRequestUpdateOrderStateResponseDto
 } from './dtos/response.dto';
+import { UpdateOrderStateDto } from './dtos/update-order-state.dto';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -53,6 +55,17 @@ export class BuyRequestsController {
     @HttpCode(HttpStatus.OK)
     async updateStatus(@Body() dto: UpdateBuyRequestStatusDto, @CurrentUser() currentUser: User) {
         return this.buyRequestsService.updateStatus(dto, currentUser);
+    }
+
+    // 🔹 Update order state (processors and admins only)
+    @ApiOperation({ summary: 'Update order state of a BuyRequest (Admin & Buyer only)' })
+    @ApiResponse({ status: 200, description: 'Successfully updated buy request order state', type: BuyRequestUpdateOrderStateResponseDto })
+    @Put('update-order-state')
+    @Roles(UserRole.ADMIN, UserRole.PROCESSOR)
+    @UseGuards(RolesGuard)
+    @HttpCode(HttpStatus.OK)
+    async updateOrderState( @Body() dto: UpdateOrderStateDto, @CurrentUser() currentUser: User,) {
+        return this.buyRequestsService.updateOrderState(dto, currentUser);
     }
 
     // 🔹 Fetch all general requests (visible to farmers, returning pending requests - not older than 1 week)

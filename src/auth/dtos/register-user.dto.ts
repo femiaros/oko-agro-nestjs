@@ -93,7 +93,7 @@ export class RegisterUserDto {
 
     @IsString()
     @IsOptional()
-    OperationsType?: string;
+    operationsType?: string;
 
     // Quality Standards & Certifications
     @IsArray()

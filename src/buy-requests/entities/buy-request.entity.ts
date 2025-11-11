@@ -15,7 +15,7 @@ export enum BuyRequestStatus {
   PENDING = 'pending',
   ACCEPTED = 'accepted',
   REJECTED = 'rejected',
-  CANCELLED = 'cancelled',
+  CANCELLED = 'cancelled', 
 }
 
 export enum PaymentMethod {
@@ -26,6 +26,14 @@ export enum BuyRequestQuantityUnit {
   KILOGRAM = 'kilogram',
   TONNE = 'tonne',
 }
+
+export enum OrderState {
+  AWAITING_SHIPPING = 'awaiting_shipping',
+  IN_TRANSIT = 'in_transit',
+  DELIVERED = 'delivered',
+  COMPLETED = 'completed',
+}
+
 
 @Entity('buy_requests')
 export class BuyRequest {
@@ -77,6 +85,18 @@ export class BuyRequest {
   
   @ManyToOne(() => Product, (product) => product.buyRequests, { nullable: true })
   product: Product | null;
+
+  @Column({ type: 'enum', enum: OrderState, nullable: true })
+  orderState: OrderState | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  orderStateTime: Date | null;
+
+  @Column({ type: 'boolean', default: false })
+  paymentConfirmed: boolean;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  paymentConfirmedAt: Date | null;  
 
   @Column({ type: 'boolean', default: false })
   isDeleted: boolean;
