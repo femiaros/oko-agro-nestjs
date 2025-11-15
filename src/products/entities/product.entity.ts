@@ -23,6 +23,12 @@ export enum ProductPriceCurrency {
   NGN = 'ngn'
 }
 
+export enum ProductApprovalStatus {
+  PENDING = 'pending',     // waiting for admin review
+  APPROVED = 'approved',   // visible on platform
+  REJECTED = 'rejected',   // rejected by admin
+}
+
 @Entity('products')
 export class Product {
   @PrimaryGeneratedColumn('uuid')
@@ -48,6 +54,9 @@ export class Product {
 
   @Column({ type: 'varchar', nullable: true })
   locationAddress: string | null;
+
+  @Column({ type: 'enum', enum: ProductApprovalStatus, default: ProductApprovalStatus.PENDING })
+  approvalStatus: ProductApprovalStatus;
 
   @ManyToOne(() => User, (user) => user.products, { onDelete: 'CASCADE' })
   owner: User;

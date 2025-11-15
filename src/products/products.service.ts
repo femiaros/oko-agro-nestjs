@@ -1,13 +1,13 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { handleServiceError } from 'src/common/utils/error-handler.util';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Product } from './entities/product.entity';
+import { Product, ProductApprovalStatus } from './entities/product.entity';
 import { Crop } from 'src/crops/entities/crop.entity';
 import { FarmerProductPhotoFilesService } from 'src/farmer-product-photo-files/farmer-product-photo-files.service';
 import { EventsService } from 'src/events/events.service';
 import { Repository } from 'typeorm';
 import { CreateProductDto } from './dtos/create-product.dto';
-import { User } from 'src/users/entities/user.entity';
+import { User, UserRole } from 'src/users/entities/user.entity';
 import { isValidImageType, isValidBase64Size } from 'src/common/utils/base64.util';
 import { EventReferenceType } from 'src/events/entities/event.entity';
 import { UpdateProductDto } from './dtos/update-product.dto';
@@ -15,6 +15,8 @@ import { UpdateProductPhotosDto } from './dtos/update-product-photos.dto';
 import { FarmerProductPhotoFile } from 'src/farmer-product-photo-files/entities/farmer-product-photo-file.entity';
 import { UsersService } from 'src/users/users.service';
 import { instanceToPlain } from 'class-transformer';
+import { AdminApprovalAction, UpdateProductApprovalDto } from './dtos/update-product-approval.dto';
+import { ProductListingQueryDto } from './dtos/product-listing-query.dto';
 
 @Injectable()
 export class ProductsService {
@@ -56,6 +58,7 @@ export class ProductsService {
                 ...productData,
                 cropType: crop,
                 owner,
+                approvalStatus: ProductApprovalStatus.PENDING, 
             });
 
             const savedProduct = await this.productsRepository.save(product);
@@ -98,7 +101,7 @@ export class ProductsService {
                 } 
             });
 
-            if (!product) throw new NotFoundException('Product not found or doesnot belong to this user');
+            if (!product) throw new NotFoundException("Product not found or doesn't belong to this user");
 
             for (const [key, value] of Object.entries(dto)) {
                 if (key === 'productId') continue; // skip productId
@@ -140,8 +143,12 @@ export class ProductsService {
         }
     }
 
-    async findUserProducts(userId: string): Promise<any> {
+    async findUserProducts(userId: string, currentUser: User): Promise<any> {
         try {
+            if (currentUser.id !== userId && currentUser.role !== UserRole.ADMIN.toString()){
+                throw new UnauthorizedException("Current logged-in user or an admin user can access resource");
+            }
+
             const products = await this.productsRepository.find({
                 where: {
                     owner: { id: userId },
@@ -153,11 +160,99 @@ export class ProductsService {
 
             return {
                 statusCode: 200,
-                message: 'User products fetched successfully',
+                message: 'User product(s) fetched successfully',
                 data: instanceToPlain(products),
             };
         } catch (error) {
             handleServiceError(error, 'An error occurred');
+        }
+    }
+
+    async findApprovedUserProducts(userId: string): Promise<any> {
+        try {
+            // Validate user exists
+            const user = await this.usersService.findUserEntity(userId);
+            if (!user) {
+                throw new NotFoundException('User not found');
+            }
+
+            // Fetch approved products linked to this owner
+            const approvedProducts = await this.productsRepository.find({
+                where: {
+                    owner: { id: userId },
+                    approvalStatus: ProductApprovalStatus.APPROVED,
+                    isDeleted: false,
+                },
+                relations: ['cropType', 'photos', 'owner'],
+                order: { createdAt: 'DESC' },
+            });
+
+            return {
+                statusCode: 200,
+                message: 'Approved product(s) fetched successfully',
+                data: instanceToPlain(approvedProducts),
+            };
+        } catch (error) {
+            handleServiceError(error, 'An error occurred while fetching approved user products');
+        }
+    }
+
+    async findProductListings(query: ProductListingQueryDto) {
+        try{
+            const {
+                search,
+                status = ProductApprovalStatus.PENDING,
+                pageNumber = 1,
+                pageSize = 20,
+            } = query;
+
+            const skip = (pageNumber - 1) * pageSize;
+
+            const qb = this.productsRepository
+                .createQueryBuilder('p')
+                .leftJoinAndSelect('p.cropType', 'crop')
+                .leftJoinAndSelect('p.owner', 'farmer')
+                .where('p.isDeleted = false')
+                .andWhere('p.approvalStatus = :status', { status });
+
+            // Search filter
+            if (search) {
+                qb.andWhere(
+                    `(
+                        LOWER(p.name) LIKE :s OR
+                        LOWER(p.locationAddress) LIKE :s OR
+
+                        LOWER(crop.name) LIKE :s OR
+
+                        LOWER(farmer.firstName) LIKE :s OR
+                        LOWER(farmer.lastName) LIKE :s OR
+                        LOWER(farmer.farmAddress) LIKE :s OR
+                        LOWER(farmer.country) LIKE :s OR
+                        LOWER(farmer.state) LIKE :s OR
+                        LOWER(farmer.farmName) LIKE :s
+                    )`,
+                    { s: `%${search.toLowerCase()}%` },
+                );
+            }
+
+            qb.orderBy('p.createdAt', 'DESC')
+                .skip(skip)
+                .take(pageSize);
+
+            const [items, totalRecord] = await qb.getManyAndCount();
+
+            return {
+                statusCode: 200,
+                message: 'Product listings fetched successfully',
+                data: {
+                    items: instanceToPlain(items),
+                    totalRecord,
+                    pageNumber,
+                    pageSize,
+                },
+            };
+        }catch (error) {
+            handleServiceError(error, 'An error occurred while fetching product listings');
         }
     }
 
@@ -195,7 +290,6 @@ export class ProductsService {
 
     async uploadProductPhotos(dto: UpdateProductPhotosDto): Promise<any> {
         try {
-
             // Allowed photosize - 2mb
             const photosize = 2 * 1024 * 1024;
             // Validate photo strings
@@ -243,6 +337,44 @@ export class ProductsService {
             };
         } catch (error) {
             handleServiceError(error, 'An error occurred');
+        }
+    }
+
+    async updateProductApproval(dto: UpdateProductApprovalDto): Promise<any> {
+        try {
+            const { productId, approvalStatus } = dto;
+
+            const product = await this.productsRepository.findOne({
+                where: { id: productId, isDeleted: false },
+            });
+
+            if (!product) throw new NotFoundException('Product not found');
+
+            // map admin input to internal enum
+            let newStatus: ProductApprovalStatus;
+            if (approvalStatus === AdminApprovalAction.APPROVE) {
+                newStatus = ProductApprovalStatus.APPROVED;
+            } else if (approvalStatus === AdminApprovalAction.REJECT) {
+                newStatus = ProductApprovalStatus.REJECTED;
+            } else {
+                throw new BadRequestException('Invalid approvalStatus value');
+            }
+
+            // prevent re-approval of already approved/rejected products
+            if (product.approvalStatus === newStatus) {
+                throw new BadRequestException(`Product is already ${newStatus}`);
+            }
+
+            product.approvalStatus = newStatus;
+            const updatedProduct = await this.productsRepository.save(product);
+
+            return {
+                statusCode: 200,
+                message: `Product ${newStatus} successfully`,
+                data: instanceToPlain(updatedProduct)
+            };
+        } catch (error) {
+            handleServiceError(error, 'An error occurred while updating product approval');
         }
     }
 

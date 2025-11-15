@@ -15,14 +15,16 @@ import { ProductsModule } from './products/products.module';
 import { FarmerProductPhotoFilesModule } from './farmer-product-photo-files/farmer-product-photo-files.module';
 import { EventsModule } from './events/events.module';
 import { BuyRequestsModule } from './buy-requests/buy-requests.module';
+import { SchedulersModule } from './schedulers/schedulers.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }), // makes ConfigService available everywhere
+    ConfigModule.forRoot({ isGlobal: true }), // Makes ConfigService available everywhere
     TypeOrmModule.forRoot(ormconfig),
     UsersModule, AuthModule, CropsModule, FilesModule, MailerModule, 
     CertificationsModule, QualityStandardsModule, ProductsModule, 
-    FarmerProductPhotoFilesModule, EventsModule, BuyRequestsModule
+    FarmerProductPhotoFilesModule, EventsModule, BuyRequestsModule, SchedulersModule, AdminModule
   ],
   controllers: [AppController],
   providers: [AppService],

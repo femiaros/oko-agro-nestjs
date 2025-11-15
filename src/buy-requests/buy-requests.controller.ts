@@ -10,13 +10,15 @@ import { UpdateBuyRequestDto } from './dtos/update-buy-request.dto';
 import { UpdateBuyRequestStatusDto } from './dtos/update-buy-request-status.dto';
 import { BuyRequestStatus } from './entities/buy-request.entity';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
-import { BuyRequestCreateResponseDto, BuyRequestDeleteResponseDto, 
+import { 
+    BuyRequestCreateResponseDto, BuyRequestDeleteResponseDto, 
     BuyRequestGeneralListResponseDto, BuyRequestListResponseDto, 
     BuyRequestUpdateResponseDto, BuyRequestUpdateStatusResponseDto,
     BuyRequestFindResponseDto, BuyRequestFindByUserIdResponseDto,
-    BuyRequestUpdateOrderStateResponseDto
+    BuyRequestUpdateOrderStateResponseDto,BuyRequestOngoingOrderListResponseDto
 } from './dtos/response.dto';
 import { UpdateOrderStateDto } from './dtos/update-order-state.dto';
+import { OngoingBuyRequestOrdersQueryDto } from './dtos/ongoing-buy-request-orders-query.dto';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -99,6 +101,20 @@ export class BuyRequestsController {
             pageNumber,
             pageSize,
         );
+    }
+
+    @ApiOperation({ 
+        summary: 'Admin Only Access: Fetch BuyRequest ongoing buyrequest orders',
+        description: 'Allows an admin to fetch buyresquests. Filtering on `awaiting_shipping`, `in_transit`, `delivered` or, `completed`.',
+    })
+    @ApiResponse({ status: 200, description: 'Ongoing buyrequest orders fetched successfully', type: BuyRequestOngoingOrderListResponseDto})
+    @Get('ongoing-buyrequest')
+    @Roles(UserRole.ADMIN)
+    @UseGuards(RolesGuard)
+    async findOngoingBuyRequestOrders(
+        @Query() query: OngoingBuyRequestOrdersQueryDto
+    ) {
+        return this.buyRequestsService.findOngoingBuyRequestOrders(query);
     }
 
     @ApiOperation({ summary: 'Fetch buyRequest with :buyRequestId' })

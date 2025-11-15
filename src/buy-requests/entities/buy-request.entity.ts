@@ -91,6 +91,9 @@ export class BuyRequest {
 
   @Column({ type: 'timestamptz', nullable: true })
   orderStateTime: Date | null;
+  
+  @Column({ type: 'varchar' })
+  paymentAmount: string;
 
   @Column({ type: 'boolean', default: false })
   paymentConfirmed: boolean;

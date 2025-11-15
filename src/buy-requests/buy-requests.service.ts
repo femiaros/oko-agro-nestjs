@@ -13,6 +13,7 @@ import { instanceToPlain } from 'class-transformer';
 import { UpdateBuyRequestStatusDto } from './dtos/update-buy-request-status.dto';
 import { UpdateBuyRequestDto } from './dtos/update-buy-request.dto';
 import { UpdateOrderStateDto } from './dtos/update-order-state.dto';
+import { OngoingBuyRequestOrdersQueryDto } from './dtos/ongoing-buy-request-orders-query.dto';
 
 @Injectable()
 export class BuyRequestsService {
@@ -277,6 +278,18 @@ export class BuyRequestsService {
 
             // ✅ HANDLE ADMIN CONFIRM PAYMENT → IN_TRANSIT
             if (isAdmin && dto.orderState === OrderState.IN_TRANSIT) {
+                // Convert string values to numbers safely
+                const quantity = parseFloat(buyRequest.productQuantity);
+                const pricePerUnit = parseFloat(buyRequest.pricePerUnitOffer);
+
+                if (isNaN(quantity) || isNaN(pricePerUnit)) {
+                    throw new BadRequestException('Invalid productQuantity or pricePerUnitOffer format');
+                }
+
+                // Calculate total = quantity × price per unit
+                const totalAmount = (quantity * pricePerUnit).toFixed(2); // 2 decimal places
+                
+                buyRequest.paymentAmount = totalAmount.toString(); // store as string
                 buyRequest.paymentConfirmed = true;
                 buyRequest.paymentConfirmedAt = new Date();
             }
@@ -400,6 +413,70 @@ export class BuyRequestsService {
             };
         } catch (error) {
             handleServiceError(error, 'An error occurred while fetching buy requests');
+        }
+    }
+
+    async findOngoingBuyRequestOrders(query: OngoingBuyRequestOrdersQueryDto) {
+        try{
+            const {
+                search,
+                state = OrderState.AWAITING_SHIPPING,
+                pageNumber = 1,
+                pageSize = 20,
+            } = query;
+
+            const skip = (pageNumber - 1) * pageSize;
+
+            const qb = this.buyRequestsRepository
+                .createQueryBuilder('buyRequest')
+                .leftJoinAndSelect('buyRequest.buyer', 'buyer')
+                .leftJoinAndSelect('buyRequest.seller', 'seller')
+                .leftJoinAndSelect('buyRequest.cropType', 'crop')
+                .where('buyRequest.isDeleted = false')
+                .andWhere('buyRequest.orderState = :state', { state });
+
+            // Apply search filter
+            if (search) {
+                qb.andWhere(
+                    `(
+                        LOWER(buyer.firstName) LIKE :s OR
+                        LOWER(buyer.lastName) LIKE :s OR
+                        LOWER(buyer.farmAddress) LIKE :s OR
+                        LOWER(buyer.country) LIKE :s OR
+                        LOWER(buyer.state) LIKE :s OR
+                        LOWER(buyer.farmName) LIKE :s OR
+
+                        LOWER(seller.firstName) LIKE :s OR
+                        LOWER(seller.lastName) LIKE :s OR
+                        LOWER(seller.farmAddress) LIKE :s OR
+                        LOWER(seller.country) LIKE :s OR
+                        LOWER(seller.state) LIKE :s OR
+                        LOWER(seller.farmName) LIKE :s OR
+
+                        LOWER(crop.name) LIKE :s
+                    )`,
+                    { s: `%${search.toLowerCase()}%` },
+                );
+            }
+
+            qb.orderBy('buyRequest.createdAt', 'DESC')
+                .skip(skip)
+                .take(pageSize);
+
+            const [items, totalRecord] = await qb.getManyAndCount();
+
+            return {
+                statusCode: 200,
+                message: 'Ongoing buyrequest orders fetched successfully',
+                data: {
+                    items: instanceToPlain(items),
+                    totalRecord,
+                    pageNumber,
+                    pageSize,
+                },
+            };
+        }catch (error) {
+            handleServiceError(error, 'An error occurred while fetching ongoing buy requests');
         }
     }
 

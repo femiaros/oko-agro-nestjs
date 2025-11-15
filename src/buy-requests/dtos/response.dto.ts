@@ -67,6 +67,14 @@ export class BuyRequestListResponseDto extends ApiResponseDto<BuyRequestPaginati
     declare data: BuyRequestPaginationData;
 }
 
+export class BuyRequestOngoingOrderListResponseDto extends ApiResponseDto<BuyRequestPaginationData> {
+    @ApiProperty({ example: 'Ongoing buyrequest orders fetched successfully' })
+    declare message: string;
+
+    @ApiProperty({ type: () => BuyRequestPaginationData })
+    declare data: BuyRequestPaginationData;
+}
+
 export class BuyRequestFindResponseDto extends ApiResponseDto<BuyRequest> {
     @ApiProperty({ example: 'BuyRequest fetched successfully' })
     declare message: string;
