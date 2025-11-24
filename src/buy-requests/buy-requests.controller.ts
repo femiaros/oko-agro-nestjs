@@ -15,10 +15,12 @@ import {
     BuyRequestGeneralListResponseDto, BuyRequestListResponseDto, 
     BuyRequestUpdateResponseDto, BuyRequestUpdateStatusResponseDto,
     BuyRequestFindResponseDto, BuyRequestFindByUserIdResponseDto,
-    BuyRequestUpdateOrderStateResponseDto,BuyRequestOngoingOrderListResponseDto
+    BuyRequestUpdateOrderStateResponseDto,BuyRequestOngoingOrderListResponseDto,
+    PurchaseOrderDeleteResponseDto
 } from './dtos/response.dto';
 import { UpdateOrderStateDto } from './dtos/update-order-state.dto';
 import { OngoingBuyRequestOrdersQueryDto } from './dtos/ongoing-buy-request-orders-query.dto';
+import { UpdatePurchaseOrderDocDto } from './dtos/update-purchase-order-doc.dto';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -63,7 +65,7 @@ export class BuyRequestsController {
     @ApiOperation({ summary: 'Update order state of a BuyRequest (Admin & Buyer only)' })
     @ApiResponse({ status: 200, description: 'Successfully updated buy request order state', type: BuyRequestUpdateOrderStateResponseDto })
     @Put('update-order-state')
-    @Roles(UserRole.ADMIN, UserRole.PROCESSOR)
+    @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.PROCESSOR)
     @UseGuards(RolesGuard)
     @HttpCode(HttpStatus.OK)
     async updateOrderState( @Body() dto: UpdateOrderStateDto, @CurrentUser() currentUser: User,) {
@@ -109,7 +111,7 @@ export class BuyRequestsController {
     })
     @ApiResponse({ status: 200, description: 'Ongoing buyrequest orders fetched successfully', type: BuyRequestOngoingOrderListResponseDto})
     @Get('ongoing-buyrequest')
-    @Roles(UserRole.ADMIN)
+    @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
     @UseGuards(RolesGuard)
     async findOngoingBuyRequestOrders(
         @Query() query: OngoingBuyRequestOrdersQueryDto
@@ -133,6 +135,24 @@ export class BuyRequestsController {
     @HttpCode(HttpStatus.OK)
     async findUserBuyRequests(@Param('userId') userId: string) {
         return this.buyRequestsService.findUserBuyRequests(userId);
+    }
+
+    @ApiOperation({ summary: `Upload PurchaseOrderDocDto for a buyRequest (Only the owner` })
+    @ApiResponse({ status: 200, description: "Successfully uploaded purchase order doc", type: PurchaseOrderDeleteResponseDto })
+    @Post('upload-purchase-order')
+    @HttpCode(HttpStatus.CREATED)
+    async uploadPurchaseOrderDoc(@Body() dto: UpdatePurchaseOrderDocDto) {
+        return this.buyRequestsService.uploadPurchaseOrderDoc(dto);
+    }
+
+    @ApiOperation({ summary: 'Delete a purchase order doc (only the ower)' })
+    @ApiResponse({ status: 200, description: "Successfully deleted purchase order doc", type: PurchaseOrderDeleteResponseDto })
+    @Delete('remove-purchase-order/:documentId')
+    @Roles(UserRole.PROCESSOR)
+    @UseGuards(RolesGuard)
+    @HttpCode(HttpStatus.OK)
+    async removePurchaseOrderDoc(@Param('documentId') documentId: string) {
+        return this.buyRequestsService.removePurchaseOrderDoc(documentId);
     }
 
     // 🔹 Delete a request (soft delete, processors only)

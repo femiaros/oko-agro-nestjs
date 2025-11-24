@@ -23,3 +23,35 @@ export class DashboardOverviewResponseDto extends ApiResponseDto<DashboardOvervi
     @ApiProperty({ type: DashboardOverviewDataDto })
     declare data: DashboardOverviewDataDto;
 }
+
+export class CreateAdminData {
+    @ApiProperty({ example: "8hfeiweji9rfwjkowstring64" })
+    id: string;
+}
+
+export class CreateAdminResponseDto extends ApiResponseDto<CreateAdminData> {
+    @ApiProperty({ example: 201 })
+    declare statusCode: number;
+
+    @ApiProperty({ example: 'Admin user created successfully' })
+    declare message: string;
+
+    @ApiProperty({ type: () => CreateAdminData })
+    declare data: CreateAdminData;
+}
+
+export class UpdateUserResponseDto {
+    @ApiProperty({ example: 200 })
+    statusCode: number;
+
+    @ApiProperty({ example: "User has been disabled successfully" })
+    message: string;
+}
+
+export class DeleteAdminResponseDto {
+    @ApiProperty({ example: 200 })
+    statusCode: number;
+
+    @ApiProperty({ example: "Admin user deleted successfully" })
+    message: string;
+}

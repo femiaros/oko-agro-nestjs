@@ -17,6 +17,26 @@ export class UsersPaginationData {
     pageSize: number;
 }
 
+export class UsersPaginationData2 {
+    @ApiProperty({ type: () => [User] })
+    items: User[];
+
+    @ApiProperty({ example: 1000 })
+    totalRecord: number;
+
+    @ApiProperty({ example: 784 })
+    totalFarmerRecord: number;
+
+    @ApiProperty({ example: 207 })
+    totalProcessorRecord: number;
+
+    @ApiProperty({ example: 1 })
+    pageNumber: number;
+
+    @ApiProperty({ example: 20 })
+    pageSize: number;
+}
+
 export class ProcessorListResponseDto extends ApiResponseDto<UsersPaginationData> {
     @ApiProperty({ example: 'Processor user(s) fetched successfully' })
     declare message: string;
@@ -31,6 +51,14 @@ export class FarmerListResponseDto extends ApiResponseDto<UsersPaginationData> {
 
     @ApiProperty({ type: () => UsersPaginationData })
     declare data: UsersPaginationData;
+}
+
+export class AllUsersResponseDto extends ApiResponseDto<UsersPaginationData2> {
+    @ApiProperty({ example: 'User(s) fetched successfully' })
+    declare message: string;
+
+    @ApiProperty({ type: () => UsersPaginationData2 })
+    declare data: UsersPaginationData2;
 }
 
 export class UserFindResponseDto extends ApiResponseDto<User> {

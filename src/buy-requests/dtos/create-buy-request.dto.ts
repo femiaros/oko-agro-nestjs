@@ -69,4 +69,8 @@ export class CreateBuyRequestDto {
   @IsUUID()
   @IsOptional()
   productId?: string; // product being referenced
+
+  @ApiProperty({ description: "Purchase Order document (base64)"})
+  @IsString()
+  purchaseOrderDoc: string;
 }

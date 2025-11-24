@@ -13,9 +13,9 @@ export class BuyRequestsScheduler {
         private readonly buyRequestsRepository: Repository<BuyRequest>,
     ) {}
 
-    // Runs every 10 seconds
+    // Runs every 10 seconds - .EVERY_10_SECONDS
     // AutoComplete BuyRequest's orderState
-    @Cron(CronExpression.EVERY_10_SECONDS)
+    @Cron(CronExpression.EVERY_30_SECONDS)
     async handleAutoCompleteOrders() {
         // Prevent running if scheduler disabled
         if (process.env.RUN_SCHEDULER !== 'true') {

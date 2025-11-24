@@ -43,7 +43,7 @@ export class ProductsController {
     @ApiOperation({ summary: `Fetch a user's list of products with :userId (Only owner user and Admin user can access)` })
     @ApiResponse({status: 200, description: 'Successfully fetched approved user products', type: ProductFindByUserIdResponseDto})
     @Get('user/:userId')
-    @Roles(UserRole.FARMER, UserRole.ADMIN)
+    @Roles(UserRole.FARMER, UserRole.ADMIN, UserRole.SUPER_ADMIN)
     @UseGuards(RolesGuard)
     @HttpCode(HttpStatus.OK)
     async findUserProducts(@Param('userId') userId: string, @CurrentUser() currentUser: User) {
@@ -65,7 +65,7 @@ export class ProductsController {
     })
     @ApiResponse({ status: 200, description: 'Product listings fetched successfully', type: ProductListingsResponseDto})
     @Get('listings')
-    @Roles(UserRole.ADMIN)
+    @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
     @UseGuards(RolesGuard)
     async findProductListings(
         @Query() query: ProductListingQueryDto
@@ -86,7 +86,7 @@ export class ProductsController {
     })
     @ApiResponse({ status: 200, description: 'Product approval status updated successfully', type: ProductApprovalStatusResponseDto})
     @Patch('approval')
-    @Roles(UserRole.ADMIN)
+    @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
     @UseGuards(RolesGuard)
     @HttpCode(HttpStatus.OK)
     async updateProductApproval(@Body() dto: UpdateProductApprovalDto) {

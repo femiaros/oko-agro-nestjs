@@ -3,7 +3,8 @@ import { UsersService } from './users.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
-import { FarmerListResponseDto, ProcessorListResponseDto, UserFindResponseDto } from './dtos/response.dto';
+import { FarmerListResponseDto, ProcessorListResponseDto, UserFindResponseDto, AllUsersResponseDto } from './dtos/response.dto';
+import { FindAllUsersQueryDto } from './dtos/find-all-users-query.dto';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -41,6 +42,18 @@ export class UsersController {
         @Query('pageSize', new DefaultValuePipe(20), ParseIntPipe) pageSize?: number,
     ) {
         return this.usersService.findFarmers(currentUser, search, pageNumber, pageSize);
+    }
+
+    @ApiOperation({
+        summary: 'Find all users (excluding admins)',
+        description: 'Returns paginated list of users filtered by optional search',
+    })
+    @ApiResponse({ status: 200, description: 'Paginated users result returned successfully', type: AllUsersResponseDto })
+    @Get('all-users')
+    async findAllUsers(
+        @Query() query: FindAllUsersQueryDto,
+    ) {
+        return this.usersService.findAllUsers(query);
     }
 
     @ApiOperation({ summary: 'Fetch user on the system with :userId' })

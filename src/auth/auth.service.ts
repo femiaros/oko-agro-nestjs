@@ -31,7 +31,7 @@ export class AuthService {
         private readonly mailerService: MailerService,
     ){}
 
-    async registerUser(registerUserDto: RegisterUserDto){
+    async registerUserDropped(registerUserDto: RegisterUserDto){
         const { confirmPassword, cropIds, certificationIds, qualityStandardIds, userPhoto, farmPhoto, ...userData } = registerUserDto
 
         // Check userPhoto
@@ -109,7 +109,7 @@ export class AuthService {
             qualityStandards
         } as DeepPartial<User>);
 
-        // Save user first (so we have an id for relation)
+        // Save user first (so to have an id for relation)
         const savedUser = await this.usersRepository.save(newUser);
 
         // Upload photos if provided
@@ -160,6 +160,143 @@ export class AuthService {
             data: { id: savedUser.id },
         };
 
+    }
+
+    async registerUser(registerUserDto: RegisterUserDto) {
+        try{
+            const {
+                confirmPassword,cropIds,certificationIds,qualityStandardIds,
+                userPhoto, farmPhoto, businessRegCertDoc, taxIdCertDoc,
+                ...userData
+            } = registerUserDto;
+
+            // VALIDATIONS
+            if (registerUserDto.password !== registerUserDto.confirmPassword)
+                throw new ConflictException('Passwords do not match.');
+
+            // Validate images
+            const validateImage = (file: string, field: string) => {
+                if (!this.isValidImageType(file))
+                    throw new BadRequestException(`${field}: Only jpeg/png images are allowed`);
+
+                if (!this.isValidatePhotoSize(file))
+                    throw new BadRequestException(`${field}: Image size must be 2MB or less`);
+            };
+
+            if (userPhoto) validateImage(userPhoto, 'userPhoto');
+            if (farmPhoto) validateImage(farmPhoto, 'farmPhoto');
+            if (businessRegCertDoc) validateImage(businessRegCertDoc, 'businessRegCertDoc');
+            if (taxIdCertDoc) validateImage(taxIdCertDoc, 'taxIdCertDoc');
+
+            // CHECK IF USER EXISTS
+            const existingUser = await this.usersRepository.findOne({
+                where: { email: ILike(registerUserDto.email) },
+                relations: ['files'],
+            });
+
+            // If fully registered → block duplicate registration
+            if (existingUser && existingUser.userVerified === true) {
+                throw new ConflictException('Email already in use.');
+            }
+
+            // FETCH RELATION DATA
+            let crops: Crop[] = [];
+            if (cropIds?.length) {
+                crops = await this.cropsRepository.findBy({ id: In(cropIds) });
+                if (crops.length !== cropIds.length)
+                    throw new BadRequestException('One or more crop IDs are invalid');
+            }
+
+            let certifications: Certification[] = [];
+            if (certificationIds?.length) {
+                certifications = await this.certificationsRepository.findBy({ id: In(certificationIds) });
+                if (certifications.length !== certificationIds.length)
+                    throw new BadRequestException('One or more certification IDs are invalid');
+            }
+
+            let qualityStandards: QualityStandard[] = [];
+            if (qualityStandardIds?.length) {
+                qualityStandards = await this.qualityStandardsRepository.findBy({ id: In(qualityStandardIds) });
+                if (qualityStandards.length !== qualityStandardIds.length)
+                    throw new BadRequestException('One or more qualityStandard IDs are invalid');
+            }
+
+            // PREP USER ENTITY
+            const hashedPassword = await this.hashPassword(registerUserDto.password);
+
+            let user: User;
+
+            if (!existingUser) {
+                // First-time registration
+                user = this.usersRepository.create({
+                    ...userData,
+                    password: hashedPassword,
+                    crops,
+                    certifications,
+                    qualityStandards,
+                    userVerified: false,
+                });
+
+            } else {
+                // User exists but not verified → update instead
+                user = Object.assign(existingUser, {
+                    ...userData,
+                    password: hashedPassword,
+                    crops,
+                    certifications,
+                    qualityStandards,
+                    userVerified: false,
+                });
+            }
+
+            // Save user first (must exist to link files)
+            const savedUser = await this.usersRepository.save(user);
+
+            // UPLOAD FILES (each removes old if exists)
+            const uploadIfProvided = async (file: string | undefined, description: string) => {
+                if (file) {
+                    await this.filesService.uploadFile(file, description, savedUser);
+                }
+            };
+
+            await uploadIfProvided(userPhoto, 'userPhoto');
+            await uploadIfProvided(farmPhoto, 'farmPhoto');
+            await uploadIfProvided(businessRegCertDoc, 'businessRegCertDoc');
+            await uploadIfProvided(taxIdCertDoc, 'taxIdCertDoc');
+
+            // GENERATE OTP
+            const otp = this.generateOtp();
+            const expiry = new Date();
+            expiry.setMinutes(expiry.getMinutes() + 10);
+
+            savedUser.userVerificationOtp = otp;
+            savedUser.userVerificationOtpExpiryTime = expiry;
+            await this.usersRepository.save(savedUser);
+
+            // SEND OTP EMAIL
+            const mailResult = await this.mailerService.sendMail(
+                savedUser.email,
+                'OkoAgro - Verify your account',
+                `Your OTP is: ${otp}. It expires in 10 minutes.`,
+                `<h2>Your OTP is <b>${otp}</b></h2><p>It expires in 10 minutes.</p>`,
+            );
+
+            if (!mailResult.success) {
+                return {
+                    statusCode: 400,
+                    message: 'Registration completed, but failed to send verification OTP email',
+                    data: { id: savedUser.id },
+                };
+            }
+
+            return {
+                statusCode: 201,
+                message: 'Registration completed, verification OTP sent successfully!',
+                data: { id: savedUser.id },
+            };
+        } catch (error) {
+            handleServiceError(error, 'An error occurred registrating user');
+        }
     }
 
     async loginUser(loginUserDto: LoginUserDto) {

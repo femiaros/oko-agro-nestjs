@@ -5,11 +5,13 @@ import {
   ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToOne,
 } from 'typeorm';
 import { Crop } from 'src/crops/entities/crop.entity';
 import { QualityStandard } from 'src/quality-standards/entities/quality-standard.entity';
 import { User } from 'src/users/entities/user.entity';
 import { Product, ProductQuantityUnit } from 'src/products/entities/product.entity';
+import { PurchaseOrderDocFile } from 'src/purchase-order-doc-files/entities/purchase-order-doc-file.entity';
 
 export enum BuyRequestStatus {
   PENDING = 'pending',
@@ -85,6 +87,9 @@ export class BuyRequest {
   
   @ManyToOne(() => Product, (product) => product.buyRequests, { nullable: true })
   product: Product | null;
+
+  @OneToOne( () => PurchaseOrderDocFile, (po) => po.buyRequest, { cascade: true, nullable: true, eager: true })
+  purchaseOrderDoc: PurchaseOrderDocFile | null;
 
   @Column({ type: 'enum', enum: OrderState, nullable: true })
   orderState: OrderState | null;

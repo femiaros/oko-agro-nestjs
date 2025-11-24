@@ -331,7 +331,7 @@ export class ProductsService {
             await this.productsRepository.save(product);
 
             return {
-                statusCode: 200,
+                statusCode: 201,
                 message: 'Product photos uploaded successfully!',
                 data: uploadedPhotos,
             };

@@ -7,12 +7,16 @@ import { ForgotPasswordDto } from './dtos/forgot-password.dto';
 import { ResetPasswordDto } from './dtos/reset-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { registerUserResponseDto } from './dtos/response.dto';
+import { ResendOtpDto } from './dtos/resend-otp.dto';
 
 @Controller('auth')
 export class AuthController {
     constructor(private authService: AuthService) {}
 
+    @ApiOperation({ summary: 'Register a new user' })
+    @ApiResponse({status: 201, description: 'User registered successfully', type: registerUserResponseDto})
     @Post('register-user')
     @HttpCode(HttpStatus.CREATED)
     async registerUser(@Body() registerUserDto: RegisterUserDto) {
@@ -25,6 +29,7 @@ export class AuthController {
         return await this.authService.loginUser(loginUserDto)
     }
 
+    @ApiOperation({ summary: 'Refresh access token' })
     @Post('refresh')
     @HttpCode(HttpStatus.OK)
     async refreshToken(@Body('refreshToken') refreshToken: string) {
@@ -32,6 +37,7 @@ export class AuthController {
     }
 
     // ✅ Verify OTP
+    @ApiOperation({ summary: 'Verify otp sent to user email (User registration-verification)' })
     @Post('verify-otp')
     @HttpCode(HttpStatus.OK)
     async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto ) {
@@ -39,18 +45,21 @@ export class AuthController {
     }
 
     // ✅ Resend OTP
+    @ApiOperation({ summary: 'Resend user registration-verification otp to user email' })
     @Post('resend-otp')
     @HttpCode(HttpStatus.OK)
-    async resendOtp(@Body() body: { userId: string }) {
+    async resendOtp(@Body() body: ResendOtpDto) {
         return this.authService.resendOtp(body.userId);
     }
 
+    @ApiOperation({ summary: 'Forgot-password (Request for reset-password client url)' })
     @Post('forgot-password')
     @HttpCode(HttpStatus.OK)
     async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
         return this.authService.forgotPassword(forgotPasswordDto);
     }
 
+    @ApiOperation({ summary: 'Reset-password (change a new password)' })
     @Post('reset-password')
     @HttpCode(HttpStatus.OK)
     async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
@@ -58,6 +67,7 @@ export class AuthController {
     }
 
     // Proctected
+    @ApiOperation({ summary: 'Get Logged in User profile details' })
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard)
     @Get('profile')

@@ -8,10 +8,13 @@ import { BuyRequest } from './entities/buy-request.entity';
 import { Crop } from 'src/crops/entities/crop.entity';
 import { QualityStandard } from 'src/quality-standards/entities/quality-standard.entity';
 import { Product } from 'src/products/entities/product.entity';
+import { PurchaseOrderDocFile } from 'src/purchase-order-doc-files/entities/purchase-order-doc-file.entity';
+import { PurchaseOrderDocFilesModule } from 'src/purchase-order-doc-files/purchase-order-doc-files.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([BuyRequest, Crop, QualityStandard, Product]),
+    TypeOrmModule.forFeature([BuyRequest, Crop, QualityStandard, Product, PurchaseOrderDocFile]),
+    PurchaseOrderDocFilesModule,
     AuthModule,
     UsersModule
   ],

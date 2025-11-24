@@ -9,6 +9,7 @@ import { Product } from "src/products/entities/product.entity";
 import { FarmerProductPhotoFile } from 'src/farmer-product-photo-files/entities/farmer-product-photo-file.entity';
 import { Event } from 'src/events/entities/event.entity';
 import { BuyRequest } from 'src/buy-requests/entities/buy-request.entity';
+import { PurchaseOrderDocFile } from 'src/purchase-order-doc-files/entities/purchase-order-doc-file.entity';
 
 dotenv.config();
 
@@ -22,7 +23,10 @@ export const AppDataSource = new DataSource({
   url: process.env.DATABASE_URL,
   // ssl: { rejectUnauthorized: false },
   synchronize: false,
-  entities: [User, Crop, File, Certification, QualityStandard, Product, FarmerProductPhotoFile, Event, BuyRequest], // ✅ Explicit entities for CLI
+  entities: [
+    User, Crop, File, Certification, QualityStandard, 
+    Product, FarmerProductPhotoFile, Event, BuyRequest, PurchaseOrderDocFile
+  ], // ✅ Explicit entities for CLI
   migrationsTableName: 'migrations',
   migrations: [__dirname + '/../migrations/**/*.{ts,js}'],
   logging: process.env.NODE_ENV !== 'production',

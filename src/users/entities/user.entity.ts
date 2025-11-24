@@ -12,11 +12,17 @@ export enum UserRole {
   FARMER = 'farmer',
   PROCESSOR = 'processor',
   ADMIN = 'admin',
+  SUPER_ADMIN = 'super_admin',
 }
 
 export enum FarmSizeUnit {
   HECTARE = 'hectare',
   ACRE = 'acre',
+}
+
+export enum EstimatedAnnualProductionUnit{
+  KILOGRAM = 'kilogram',
+  TONNE = 'tonne'
 }
 
 export enum BusinessType {
@@ -80,6 +86,9 @@ export class User {
 
   @Column({ type: 'varchar', nullable: true })
   estimatedAnnualProduction: string | null;
+
+  @Column({ type: 'enum', enum: EstimatedAnnualProductionUnit, nullable: true })
+  estimatedAnnualProductionUnit: EstimatedAnnualProductionUnit;
 
   @Column({ type: 'varchar', nullable: true })
   farmingExperience: string | null;
@@ -160,6 +169,9 @@ export class User {
   @Exclude()
   @Column({ type: 'timestamptz', nullable: true })
   passwordChangedAt: Date | null;
+
+  @Column({ type: 'boolean', default: false })
+  isDisabled: boolean; // disable user account
 
   @Column({ type: 'boolean', default: false })
   isDeleted: boolean;

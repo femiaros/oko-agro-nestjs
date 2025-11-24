@@ -17,6 +17,7 @@ import { EventsModule } from './events/events.module';
 import { BuyRequestsModule } from './buy-requests/buy-requests.module';
 import { SchedulersModule } from './schedulers/schedulers.module';
 import { AdminModule } from './admin/admin.module';
+import { PurchaseOrderDocFilesModule } from './purchase-order-doc-files/purchase-order-doc-files.module';
 
 @Module({
   imports: [
@@ -24,7 +25,8 @@ import { AdminModule } from './admin/admin.module';
     TypeOrmModule.forRoot(ormconfig),
     UsersModule, AuthModule, CropsModule, FilesModule, MailerModule, 
     CertificationsModule, QualityStandardsModule, ProductsModule, 
-    FarmerProductPhotoFilesModule, EventsModule, BuyRequestsModule, SchedulersModule, AdminModule
+    FarmerProductPhotoFilesModule, EventsModule, BuyRequestsModule, 
+    SchedulersModule, AdminModule, PurchaseOrderDocFilesModule, PurchaseOrderDocFilesModule
   ],
   controllers: [AppController],
   providers: [AppService],

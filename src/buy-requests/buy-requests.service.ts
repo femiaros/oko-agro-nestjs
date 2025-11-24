@@ -14,6 +14,9 @@ import { UpdateBuyRequestStatusDto } from './dtos/update-buy-request-status.dto'
 import { UpdateBuyRequestDto } from './dtos/update-buy-request.dto';
 import { UpdateOrderStateDto } from './dtos/update-order-state.dto';
 import { OngoingBuyRequestOrdersQueryDto } from './dtos/ongoing-buy-request-orders-query.dto';
+import { detectMimeTypeFromBase64, isValidBase64Size, isValidBase64SizeGeneric, isValidImageType } from 'src/common/utils/base64.util';
+import { PurchaseOrderDocFilesService } from 'src/purchase-order-doc-files/purchase-order-doc-files.service';
+import { UpdatePurchaseOrderDocDto } from './dtos/update-purchase-order-doc.dto';
 
 @Injectable()
 export class BuyRequestsService {
@@ -22,16 +25,38 @@ export class BuyRequestsService {
         @InjectRepository(Crop) private readonly cropsRepository: Repository<Crop>,
         @InjectRepository(QualityStandard) private readonly qualityStandardRepository: Repository<QualityStandard>,
         @InjectRepository(Product) private readonly productsRepository: Repository<Product>,
-        private readonly usersService: UsersService
+        private readonly usersService: UsersService,
+        private readonly fileService: PurchaseOrderDocFilesService,
     ) {}
 
     
     async create(dto: CreateBuyRequestDto, buyer: User): Promise<any> {
-        const { cropId, qualityStandardId, productId, sellerId, ...rest } = dto;
+        const { cropId, qualityStandardId, productId, sellerId, purchaseOrderDoc, ...rest } = dto;
+
         try{
             if (dto.isGeneral){
                 if(dto.sellerId) throw new BadRequestException(`General buy request doesn't require a sellerId to be provided at initiation`);
                 if(dto.productId) throw new BadRequestException(`General buy request doesn't require a productId to be provided at initiation`);
+            }
+
+            // Allowed docsize - 2mb
+            const docSize = 2 * 1024 * 1024;
+            // Validate doc strings
+            // if (!isValidImageType(purchaseOrderDoc)) 
+            //     throw new BadRequestException('PurchaseOrderDoc: Only jpeg/png images are allowed');
+
+            // if (!isValidBase64Size(purchaseOrderDoc, docSize))
+            //     throw new BadRequestException('PurchaseOrderDoc: Image size must be 2MB or less');
+
+            const detected = detectMimeTypeFromBase64(purchaseOrderDoc);
+
+            if (!detected || !this.supported.includes(detected)) {
+                throw new BadRequestException( 'PurchaseOrderDoc must be JPEG, PNG, or PDF format.' );
+            }
+
+            // Validate size: 2MB
+            if (!isValidBase64SizeGeneric(purchaseOrderDoc, docSize)) {
+                throw new BadRequestException('PurchaseOrderDoc must be 2MB or less.');
             }
 
             const crop = await this.cropsRepository.findOne({ where: { id: dto.cropId } });
@@ -81,6 +106,9 @@ export class BuyRequestsService {
             });
 
             const savedBuyRequest = await this.buyRequestsRepository.save(buyRequest);
+
+            // Upload doc
+            await this.fileService.uploadFile(purchaseOrderDoc, `PurchaseOrderDoc`, savedBuyRequest);
 
             return {
                 statusCode: 201,
@@ -487,7 +515,7 @@ export class BuyRequestsService {
                     id: buyRequestId,
                     isDeleted: false,
                 },
-                relations: ['buyer', 'seller', 'product', 'qualityStandardType']
+                relations: ['buyer', 'seller', 'product', 'qualityStandardType', 'purchaseOrderDoc']
             });
 
             if (!buyRequest) {
@@ -559,6 +587,53 @@ export class BuyRequestsService {
         }
     }
 
+    async uploadPurchaseOrderDoc(dto: UpdatePurchaseOrderDocDto): Promise<any> {
+        try {
+
+            const detected = detectMimeTypeFromBase64(dto.purchaseOrderDoc);
+
+            if (!detected || !this.supported.includes(detected)) {
+                throw new BadRequestException( 'PurchaseOrderDoc must be JPEG, PNG, or PDF format.' );
+            }
+
+            // Allowed docsize - 2mb
+            const docSize = 2 * 1024 * 1024;
+
+            // Validate size
+            if (!isValidBase64SizeGeneric(dto.purchaseOrderDoc, docSize)) {
+                throw new BadRequestException('PurchaseOrderDoc must be 2MB or less.');
+            }
+
+            const buyRequest = await this.buyRequestsRepository.findOne({
+                where: { id: dto.buyRequestId, isDeleted: false },
+                relations: [],
+            });
+
+            if (!buyRequest) {
+                throw new NotFoundException(`buyRequest not found`);
+            }
+
+            // Upload doc
+            const uploaded = await this.fileService.uploadFile(dto.purchaseOrderDoc, `PurchaseOrderDoc`, buyRequest);
+
+            return {
+                statusCode: 201,
+                message: 'Purchase order doc uploaded successfully',
+                data: uploaded,
+            };
+        }catch (error) {
+            handleServiceError(error, 'An error occurred while uploading document');
+        }
+    }
+
+    async removePurchaseOrderDoc(documentId: string) {
+        try {
+            return await this.fileService.removeFile(documentId); // throws the correct removeFile-method exceptions
+        } catch (error) {
+            handleServiceError(error, 'An error occurred while removing document');
+        }
+    }
+
     async deleteRequest(id: string, currentUser: User): Promise<any> {
         try {
             const buyRequest = await this.buyRequestsRepository.findOne({ 
@@ -591,4 +666,10 @@ export class BuyRequestsService {
         if (last.length === 0) return 100001;
         return Number(last[0].requestNumber) + 1;
     }
+
+    private supported = [
+        'image/jpeg',
+        'image/png',
+        'application/pdf',
+    ];
 }

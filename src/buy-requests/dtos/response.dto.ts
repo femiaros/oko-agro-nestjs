@@ -1,6 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { ApiResponseDto } from "src/common/dto/api-response.dto";
 import { BuyRequest } from "../entities/buy-request.entity";
+import { PurchaseOrderDocFile } from "src/purchase-order-doc-files/entities/purchase-order-doc-file.entity";
 
 export class BuyRequestPaginationData {
     @ApiProperty({ type: () => [BuyRequest] })
@@ -91,10 +92,37 @@ export class BuyRequestFindByUserIdResponseDto extends ApiResponseDto<BuyRequest
     declare data: BuyRequest[];
 }
 
+export class UploadPurchaseOrderResponseDto extends ApiResponseDto<PurchaseOrderDocFile> {
+    @ApiProperty({ example: 'Purchase order doc uploaded successfully' })
+    declare message: string;
+
+    @ApiProperty({ type: () => PurchaseOrderDocFile })
+    declare data: PurchaseOrderDocFile;
+}
+
 export class BuyRequestDeleteResponseDto {
     @ApiProperty({ example: 200 })
     statusCode: number;
 
     @ApiProperty({ example: "BuyRequest deleted successfully" })
     message: string;
+}
+
+export class PurchaseOrderDeleteResponseData {
+    @ApiProperty({ example: "l89vuhuhohougfyrf5tgygv" })
+    id: string;
+
+    @ApiProperty({ example: "Bhhdsjiioii9j" })
+    publicId: string;
+}
+
+export class PurchaseOrderDeleteResponseDto {
+    @ApiProperty({ example: 200 })
+    statusCode: number;
+
+    @ApiProperty({ example: "Purchase order doc file deleted successfully" })
+    message: string;
+
+    @ApiProperty({ type: PurchaseOrderDeleteResponseData })
+    data: PurchaseOrderDeleteResponseData;
 }

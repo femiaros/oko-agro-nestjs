@@ -5,6 +5,7 @@ import { User, UserRole } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import { Crop } from 'src/crops/entities/crop.entity';
 import { instanceToPlain } from 'class-transformer';
+import { FindAllUsersQueryDto } from './dtos/find-all-users-query.dto';
 
 @Injectable()
 export class UsersService {
@@ -224,5 +225,68 @@ export class UsersService {
         }
     }
 
+    async findAllUsers(query: FindAllUsersQueryDto) {
+        try {
+            const { search, pageNumber = 1, pageSize = 20, } = query;
 
+            const qb = this.usersRepository
+                .createQueryBuilder('user')
+                .leftJoinAndSelect('user.crops', 'crop')
+                .where('user.role != :adminRole', { adminRole: UserRole.ADMIN });
+
+            // Apply search if provided
+            if (search) {
+                const term = `%${search.toLowerCase()}%`;
+                qb.andWhere(
+                    `(LOWER(user.firstName) LIKE :term
+                      OR LOWER(user.lastName) LIKE :term
+                      OR LOWER(user.farmName) LIKE :term
+                      OR LOWER(user.state) LIKE :term
+                      OR LOWER(user.country) LIKE :term
+                      OR LOWER(user.farmAddress) LIKE :term
+                      OR LOWER(crop.name) LIKE :term
+                    )`,
+                    { term },
+                );
+            }
+
+            // total matched records
+            const totalRecord = await qb.getCount();
+
+            // total farmers
+            const totalFarmerRecord = await qb
+                .clone()
+                .andWhere('user.role = :farmerRole', { farmerRole: UserRole.FARMER })
+                .getCount();
+
+            // total processors
+            const totalProcessorRecord = await qb
+                .clone()
+                .andWhere('user.role = :processorRole', { processorRole: UserRole.PROCESSOR })
+                .getCount();
+
+            // Pagination
+            const items = await qb
+                .orderBy('user.createdAt', 'DESC')
+                .skip((pageNumber - 1) * pageSize)
+                .take(pageSize)
+                .getMany();
+
+            return {
+                statusCode: 200,
+                message: 'Users fetched successfully',
+                data: {
+                    items,
+                    totalRecord,
+                    totalFarmerRecord,
+                    totalProcessorRecord,
+                    pageNumber,
+                    pageSize,
+                },
+            };
+
+        } catch (error) {
+            handleServiceError(error, 'An error occurred, while fetching all users');
+        }
+    }
 }
