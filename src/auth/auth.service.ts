@@ -1,7 +1,7 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { handleServiceError } from 'src/common/utils/error-handler.util';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { instanceToPlain } from 'class-transformer';
 import { DeepPartial, ILike, In, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -173,6 +173,10 @@ export class AuthService {
             // VALIDATIONS
             if (registerUserDto.password !== registerUserDto.confirmPassword)
                 throw new ConflictException('Passwords do not match.');
+
+            if (registerUserDto.role === UserRole.ADMIN || registerUserDto.role === UserRole.SUPER_ADMIN) {
+                throw new ForbiddenException('Admin accounts cannot be created using this endpoint.');
+            }
 
             // Validate images
             const validateImage = (file: string, field: string) => {
@@ -483,7 +487,7 @@ export class AuthService {
 
     // ***HELPER METHODS***
 
-    private async hashPassword(password : string): Promise<string> {
+    async hashPassword(password : string): Promise<string> {
         return bcrypt.hash(password, 10);
     }
 

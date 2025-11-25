@@ -48,6 +48,14 @@ export class UpdateUserResponseDto {
     message: string;
 }
 
+export class UpdateAdminPwdResponseDto {
+    @ApiProperty({ example: 200 })
+    statusCode: number;
+
+    @ApiProperty({ example: "Password updated successfully" })
+    message: string;
+}
+
 export class DeleteAdminResponseDto {
     @ApiProperty({ example: 200 })
     statusCode: number;

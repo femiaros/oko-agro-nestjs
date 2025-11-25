@@ -1,12 +1,15 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { BuyRequest, OrderState } from 'src/buy-requests/entities/buy-request.entity';
 import { handleServiceError } from 'src/common/utils/error-handler.util';
 import { Product, ProductApprovalStatus } from 'src/products/entities/product.entity';
 import { User, UserRole } from 'src/users/entities/user.entity';
-import { ILike, Not, Repository } from 'typeorm';
+import { ILike, In, Not, Repository } from 'typeorm';
 import { CreateAdminUserDto } from './dtos/create-admin-user.dto';
 import { UpdateUserStatusDto } from './dtos/update-user-status.dto';
+import { AuthService } from 'src/auth/auth.service';
+import { UpdateAdminPasswordDto } from './dtos/update-admin-password.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AdminService {
@@ -19,21 +22,26 @@ export class AdminService {
 
         @InjectRepository(Product)
         private readonly productsRepository: Repository<Product>,
+
+        private readonly authService: AuthService,
     ) {}
 
     async getDashboardOverview() {
         try {
-            // 1️⃣ Total Users (exclude admins)
+            // 1️⃣ Total Users (exclude admin & super admin)
             const totalUsers = await this.usersRepository.count({
-                where: { role: Not(UserRole.ADMIN), isDeleted: false },
+                where: { 
+                    role: Not(In([UserRole.ADMIN, UserRole.SUPER_ADMIN])),
+                    isDeleted: false
+                }
             });
 
             // 2️⃣ Total Transactions Value
             // (sum of paymentAmount where orderState = 'in_transit')
             const transactions = await this.buyRequestsRepository
-                .createQueryBuilder('buyRequest')
-                .select('SUM(CAST(buyRequest.paymentAmount AS DECIMAL))', 'total')
-                .where('buyRequest.orderState = :state', { state: OrderState.IN_TRANSIT })
+                .createQueryBuilder('br')
+                .select('SUM(CAST(br.paymentAmount AS DECIMAL))', 'total')
+                .where('br.orderState = :state', { state: OrderState.IN_TRANSIT })
                 .getRawOne();
 
             const totalTransactionValue = transactions?.total
@@ -41,9 +49,11 @@ export class AdminService {
                 : 0;
 
             // 3️⃣ Completed Orders
-            const completedOrders = await this.buyRequestsRepository.count({
-                where: { orderState: OrderState.COMPLETED, isDeleted: false },
-            });
+            const completedOrders = await this.buyRequestsRepository
+                .createQueryBuilder('br')
+                .where('br.orderState = :state', { state: OrderState.COMPLETED })
+                .andWhere('br.isDeleted = FALSE')
+                .getCount();
 
             // 4️⃣ Pending Listings
             const pendingListings = await this.productsRepository.count({
@@ -76,8 +86,11 @@ export class AdminService {
                 throw new ConflictException('Email already in use.');
             }
 
+            const hashedPassword = await this.authService.hashPassword(dto.password);
+
             const newUser = this.usersRepository.create({
                 ...dto,
+                password: hashedPassword,
                 role: UserRole.ADMIN,
                 userVerified: true,     // admin does NOT need OTP verification
             });
@@ -111,6 +124,67 @@ export class AdminService {
             handleServiceError(error, 'Failed updating user status');
         }
     }
+
+    async updateAdminPassword( dto: UpdateAdminPasswordDto, currentUser: User) {
+        try {
+            const { userId, newPassword, confirmPassword } = dto;
+
+            if (newPassword !== confirmPassword) {
+                throw new BadRequestException("Passwords do not match.");
+            }
+
+            const user = await this.usersRepository.findOne({
+                where: { id: userId },
+            });
+
+            if (!user) throw new NotFoundException("User not found");
+
+            /** RULE 1 – Only admins and super admins can use this endpoint
+                —— Already handled by Guards **/
+
+            /** RULE 2 – Admin/Super Admin cannot change regular user passwords */
+            if (user.role !== UserRole.ADMIN && user.role !== UserRole.SUPER_ADMIN) {
+                throw new ForbiddenException( "You cannot change password for regular users" );
+            }
+
+            /** RULE 3 – Admin changing another admin? → NOT ALLOWED 
+                Only Super Admin can do that */
+            if (currentUser.role === UserRole.ADMIN && currentUser.id !== user.id ) {
+                throw new ForbiddenException(
+                    "Admins can only change their own password"
+                );
+            }
+
+            /** RULE 4 – SUPER_ADMIN cannot change another SUPER_ADMIN */
+            if (
+                currentUser.role === UserRole.SUPER_ADMIN &&
+                user.role === UserRole.SUPER_ADMIN &&
+                currentUser.id !== user.id
+            ) {
+                throw new ForbiddenException( "You cannot change password for another Super Admin" );
+            }
+
+            /** RULE 5 – Prevent setting same password as current */
+            const passwordMatches = await bcrypt.compare(newPassword, user.password);
+            if (passwordMatches) {
+                throw new BadRequestException( "New password cannot be the same as current password" );
+            }
+
+            // Hash and save new password
+            const hashedPassword = await this.authService.hashPassword(newPassword);
+            user.password = hashedPassword;
+
+            await this.usersRepository.save(user);
+
+            return {
+                statusCode: 200,
+                message: "Password updated successfully",
+            };
+        } catch (error) {
+            handleServiceError(error, "Error updating password");
+        }
+        }
+
 
     async deleteAdmin(userId: string) {
         try {

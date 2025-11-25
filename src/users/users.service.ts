@@ -232,7 +232,9 @@ export class UsersService {
             const qb = this.usersRepository
                 .createQueryBuilder('user')
                 .leftJoinAndSelect('user.crops', 'crop')
-                .where('user.role != :adminRole', { adminRole: UserRole.ADMIN });
+                .where('user.role NOT IN (:...excludedRoles)', { 
+                    excludedRoles: [UserRole.ADMIN, UserRole.SUPER_ADMIN],
+                });
 
             // Apply search if provided
             if (search) {

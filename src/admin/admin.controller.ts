@@ -3,23 +3,25 @@ import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Roles } from 'src/auth/decorators/roles.decorators';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles-guard';
-import { UserRole } from 'src/users/entities/user.entity';
+import { User, UserRole } from 'src/users/entities/user.entity';
 import { AdminService } from './admin.service';
 import { 
     CreateAdminResponseDto, DashboardOverviewResponseDto, 
-    DeleteAdminResponseDto, UpdateUserResponseDto 
+    DeleteAdminResponseDto, UpdateAdminPwdResponseDto, UpdateUserResponseDto 
 } from './dtos/response.dto';
 import { CreateAdminUserDto } from './dtos/create-admin-user.dto';
 import { UpdateUserStatusDto } from './dtos/update-user-status.dto';
+import { UpdateAdminPasswordDto } from './dtos/update-admin-password.dto';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
 @Controller('admin')
 export class AdminController {
     constructor(private readonly adminService: AdminService) {}
 
     @Get('dashboard/overview')
+    @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
     @ApiOperation({ summary: 'Get admin dashboard overview stats' })
     @ApiResponse({ status: 200, description: "Dashboard stats fetched successfully", type: DashboardOverviewResponseDto })
     @HttpCode(HttpStatus.OK)
@@ -36,13 +38,23 @@ export class AdminController {
     }
 
     @Patch('update-status')
-    // @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+    @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
     @ApiOperation({ summary: "Enable or disable a user account" })
     @ApiResponse({ status: 200, description: "User status updated", type: UpdateUserResponseDto})
     async updateUserStatus(@Body() dto: UpdateUserStatusDto,
     ) {
         return this.adminService.updateUserStatus(dto);
     }
+
+    @Post('/update-admin-password')
+    @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+    @ApiOperation({ summary: "Update admin password" })
+    @ApiResponse({ status: 200, description: "Password updated successfully", type: UpdateAdminPwdResponseDto})
+    async updateAdminPassword(@CurrentUser() currentUser: User, @Body() dto: UpdateAdminPasswordDto
+    ) {
+        return this.adminService.updateAdminPassword(dto, currentUser);
+    }
+
 
     @Delete(':userId')
     @Roles(UserRole.SUPER_ADMIN) // Only super_admin can access
