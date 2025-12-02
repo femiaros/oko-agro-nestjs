@@ -1,5 +1,5 @@
 import { BuyRequest } from "src/buy-requests/entities/buy-request.entity";
-import { Column, CreateDateColumn, Entity, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 @Entity('purchase_order_doc_files')
 export class PurchaseOrderDocFile {
@@ -25,7 +25,8 @@ export class PurchaseOrderDocFile {
     size: string | null;
 
     // The BuyRequest this document belongs to
-    @OneToOne(() => BuyRequest, (req) => req.purchaseOrderDoc, { onDelete: 'CASCADE' })
+    @OneToOne(() => BuyRequest, buyRequest => buyRequest.purchaseOrderDoc, {onDelete: 'CASCADE', })
+    @JoinColumn()
     buyRequest: BuyRequest;
 
     @CreateDateColumn()

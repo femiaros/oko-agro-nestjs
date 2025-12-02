@@ -131,7 +131,7 @@ export class UsersService {
                 statusCode: 200,
                 message: sortedItems.length < 1 ? 'No processor user found' : 'Processor user(s) fetched successfully',
                 data: {
-                    items: sortedItems,
+                    items: instanceToPlain(sortedItems),
                     matchedRecord,
                     totalRecord,
                     pageNumber,
@@ -212,7 +212,7 @@ export class UsersService {
                 statusCode: 200,
                 message: sortedItems.length < 1 ? 'No farmer user found' : 'Farmer user(s) fetched successfully',
                 data: {
-                    items: sortedItems,
+                    items: instanceToPlain(sortedItems),
                     matchedRecord,
                     totalRecord,
                     pageNumber,
@@ -278,7 +278,7 @@ export class UsersService {
                 statusCode: 200,
                 message: 'Users fetched successfully',
                 data: {
-                    items,
+                    items: instanceToPlain(items),
                     totalRecord,
                     totalFarmerRecord,
                     totalProcessorRecord,

@@ -137,7 +137,7 @@ export class BuyRequestsController {
         return this.buyRequestsService.findUserBuyRequests(userId);
     }
 
-    @ApiOperation({ summary: `Upload PurchaseOrderDocDto for a buyRequest (Only the owner` })
+    @ApiOperation({ summary: `Upload PurchaseOrderDoc for a buyRequest (Only the owner` })
     @ApiResponse({ status: 200, description: "Successfully uploaded purchase order doc", type: PurchaseOrderDeleteResponseDto })
     @Post('upload-purchase-order')
     @HttpCode(HttpStatus.CREATED)

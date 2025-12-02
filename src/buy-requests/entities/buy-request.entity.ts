@@ -88,7 +88,7 @@ export class BuyRequest {
   @ManyToOne(() => Product, (product) => product.buyRequests, { nullable: true })
   product: Product | null;
 
-  @OneToOne( () => PurchaseOrderDocFile, (po) => po.buyRequest, { cascade: true, nullable: true, eager: true })
+  @OneToOne( () => PurchaseOrderDocFile, (po) => po.buyRequest, { cascade: true, nullable: true })
   purchaseOrderDoc: PurchaseOrderDocFile | null;
 
   @Column({ type: 'enum', enum: OrderState, nullable: true })
@@ -96,9 +96,9 @@ export class BuyRequest {
 
   @Column({ type: 'timestamptz', nullable: true })
   orderStateTime: Date | null;
-  
-  @Column({ type: 'varchar' })
-  paymentAmount: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  paymentAmount: string | null;
 
   @Column({ type: 'boolean', default: false })
   paymentConfirmed: boolean;

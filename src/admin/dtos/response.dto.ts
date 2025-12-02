@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { ApiResponseDto } from "src/common/dto/api-response.dto";
-
+import { UsersPaginationData } from "src/users/dtos/response.dto";
 
 export class DashboardOverviewDataDto {
     @ApiProperty({ example: 176 })
@@ -62,4 +62,12 @@ export class DeleteAdminResponseDto {
 
     @ApiProperty({ example: "Admin user deleted successfully" })
     message: string;
+}
+
+export class GetAdminsResponseDto extends ApiResponseDto<UsersPaginationData> {
+    @ApiProperty({ example: 'Admin(s) fetched successfully' })
+    declare message: string;
+
+    @ApiProperty({ type: () => UsersPaginationData })
+    declare data: UsersPaginationData;
 }

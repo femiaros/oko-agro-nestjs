@@ -108,7 +108,11 @@ export class BuyRequestsService {
             const savedBuyRequest = await this.buyRequestsRepository.save(buyRequest);
 
             // Upload doc
-            await this.fileService.uploadFile(purchaseOrderDoc, `PurchaseOrderDoc`, savedBuyRequest);
+            const uploadedDoc = await this.fileService.uploadFile(purchaseOrderDoc, `PurchaseOrderDoc`, savedBuyRequest);
+
+            // Attach OneToOne so TypeORM does not break
+            savedBuyRequest.purchaseOrderDoc = uploadedDoc;
+            await this.buyRequestsRepository.save(savedBuyRequest);
 
             return {
                 statusCode: 201,
@@ -279,7 +283,7 @@ export class BuyRequestsService {
                 }
 
             // ROLE-BASED LOGIC
-            const isAdmin = currentUser.role === UserRole.ADMIN;
+            const isAdmin = currentUser.role === UserRole.ADMIN || UserRole.SUPER_ADMIN;
             const isBuyer = currentUser.id === buyRequest.buyer?.id;
 
             // 1️⃣ Only Admin or Buyer-Linked-to-Request can access this endpoint
@@ -589,7 +593,6 @@ export class BuyRequestsService {
 
     async uploadPurchaseOrderDoc(dto: UpdatePurchaseOrderDocDto): Promise<any> {
         try {
-
             const detected = detectMimeTypeFromBase64(dto.purchaseOrderDoc);
 
             if (!detected || !this.supported.includes(detected)) {
@@ -606,15 +609,23 @@ export class BuyRequestsService {
 
             const buyRequest = await this.buyRequestsRepository.findOne({
                 where: { id: dto.buyRequestId, isDeleted: false },
-                relations: [],
+                relations: ['purchaseOrderDoc'],
             });
 
             if (!buyRequest) {
                 throw new NotFoundException(`buyRequest not found`);
             }
 
+            // if old purchase order doc exists
+            if(buyRequest.purchaseOrderDoc){
+                await this.fileService.removeFile(buyRequest.purchaseOrderDoc.id); 
+            }
+
             // Upload doc
             const uploaded = await this.fileService.uploadFile(dto.purchaseOrderDoc, `PurchaseOrderDoc`, buyRequest);
+
+            buyRequest.purchaseOrderDoc = uploaded;
+            await this.buyRequestsRepository.save(buyRequest);
 
             return {
                 statusCode: 201,

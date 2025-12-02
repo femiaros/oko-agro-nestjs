@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Roles } from 'src/auth/decorators/roles.decorators';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -7,12 +7,13 @@ import { User, UserRole } from 'src/users/entities/user.entity';
 import { AdminService } from './admin.service';
 import { 
     CreateAdminResponseDto, DashboardOverviewResponseDto, 
-    DeleteAdminResponseDto, UpdateAdminPwdResponseDto, UpdateUserResponseDto 
+    DeleteAdminResponseDto, GetAdminsResponseDto, UpdateAdminPwdResponseDto, UpdateUserResponseDto 
 } from './dtos/response.dto';
 import { CreateAdminUserDto } from './dtos/create-admin-user.dto';
 import { UpdateUserStatusDto } from './dtos/update-user-status.dto';
 import { UpdateAdminPasswordDto } from './dtos/update-admin-password.dto';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { GetAllAdminsQueryDto } from './dtos/get-all-admins-query.dto';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -55,6 +56,17 @@ export class AdminController {
         return this.adminService.updateAdminPassword(dto, currentUser);
     }
 
+    @Get('all-admins')
+    @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+    @ApiOperation({ 
+        summary: "Get all admin users (Admin & Super Admin) with pagination and filtering",
+        description: 'Filtering on role: `admin`, or, `super_admin`.',
+    })
+    @ApiResponse({ status: 200, description: "Admins fetched successfully", type: GetAdminsResponseDto,
+    })
+    async getAllAdmins( @Query() query: GetAllAdminsQueryDto ) {
+        return this.adminService.getAllAdmins(query);
+    }
 
     @Delete(':userId')
     @Roles(UserRole.SUPER_ADMIN) // Only super_admin can access

@@ -19,6 +19,6 @@ export class UpdateBuyRequestStatusDto {
         required: false,
     })
     @IsUUID()
-    @IsOptional()
-    productId?: string; // Only required if farmer is accepting a general request
+    @IsNotEmpty()
+    productId: string;
 }

@@ -10,6 +10,8 @@ import { UpdateUserStatusDto } from './dtos/update-user-status.dto';
 import { AuthService } from 'src/auth/auth.service';
 import { UpdateAdminPasswordDto } from './dtos/update-admin-password.dto';
 import * as bcrypt from 'bcrypt';
+import { GetAllAdminsQueryDto } from './dtos/get-all-admins-query.dto';
+import { instanceToPlain } from 'class-transformer';
 
 @Injectable()
 export class AdminService {
@@ -37,11 +39,14 @@ export class AdminService {
             });
 
             // 2️⃣ Total Transactions Value
-            // (sum of paymentAmount where orderState = 'in_transit')
+            // (sum of paymentAmount where orderState = 'in_transit', 'delivered' or 'completed')
             const transactions = await this.buyRequestsRepository
                 .createQueryBuilder('br')
                 .select('SUM(CAST(br.paymentAmount AS DECIMAL))', 'total')
-                .where('br.orderState = :state', { state: OrderState.IN_TRANSIT })
+                .where('br.orderState IN (:...states)', { 
+                    states: [OrderState.IN_TRANSIT, OrderState.DELIVERED, OrderState.COMPLETED]
+                })
+                .andWhere('br.isDeleted = FALSE')
                 .getRawOne();
 
             const totalTransactionValue = transactions?.total
@@ -183,8 +188,43 @@ export class AdminService {
         } catch (error) {
             handleServiceError(error, "Error updating password");
         }
-        }
+    }
 
+    async getAllAdmins(query: GetAllAdminsQueryDto) {
+        try {
+            const {  
+                role,
+                pageNumber = 1,
+                pageSize = 20
+            } = query;
+
+            const skip = (pageNumber - 1) * pageSize;
+
+            const qb = this.usersRepository
+                .createQueryBuilder('user')
+                .where('user.isDeleted = FALSE')
+                .andWhere('user.role IN (:...roles)', {
+                    roles: role ? [role] : [UserRole.ADMIN, UserRole.SUPER_ADMIN]
+                })
+                .orderBy('user.createdAt', 'DESC');
+
+            const [items, totalRecords] = await qb.skip(skip).take(pageSize).getManyAndCount();
+
+            return {
+                statusCode: 200,
+                message: "Admins fetched successfully",
+                data: {
+                    items: instanceToPlain(items),
+                    totalRecords,
+                    pageNumber,
+                    pageSize
+                }
+            };
+
+        } catch (error) {
+            handleServiceError(error, "Failed to fetch admins");
+        }
+    }
 
     async deleteAdmin(userId: string) {
         try {
