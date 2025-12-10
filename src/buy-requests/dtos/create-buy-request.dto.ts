@@ -72,5 +72,6 @@ export class CreateBuyRequestDto {
 
   @ApiProperty({ description: "Purchase Order document (base64)"})
   @IsString()
-  purchaseOrderDoc: string;
+  @IsOptional()
+  purchaseOrderDoc?: string;
 }

@@ -13,38 +13,41 @@ export class BuyRequestsScheduler {
         private readonly buyRequestsRepository: Repository<BuyRequest>,
     ) {}
 
-    // Runs every 10 seconds - .EVERY_10_SECONDS
-    // AutoComplete BuyRequest's orderState
-    @Cron(CronExpression.EVERY_30_SECONDS)
+    // Run every 5 minutes instead of 30 sec (safe)
+    @Cron(CronExpression.EVERY_5_MINUTES)
     async handleAutoCompleteOrders() {
-        // Prevent running if scheduler disabled
         if (process.env.RUN_SCHEDULER !== 'true') {
             this.logger.debug('Scheduler disabled (RUN_SCHEDULER not set to true)');
             return;
         }
 
-        const now = new Date();
-        const cutoff = new Date(now.getTime() - 1 * 60 * 1000); // 1 min ago
+        try {
+            const now = new Date();
+            const cutoff = new Date(now.getTime() - 1 * 60 * 1000);
 
-        this.logger.debug(`Running auto-complete job at ${now.toISOString()}`);
+            this.logger.debug(`Running auto-complete job at ${now.toISOString()}`);
 
-        // Perform a single batch update (fast and efficient)
-        const result = await this.buyRequestsRepository
-            .createQueryBuilder()
-            .update(BuyRequest)
-            .set({
-                orderState: OrderState.COMPLETED,
-                orderStateTime: () => 'CURRENT_TIMESTAMP',
-            })
-            .where('orderState = :delivered', { delivered: OrderState.DELIVERED })
-            .andWhere('orderStateTime < :cutoff', { cutoff })
-            .andWhere('isDeleted = false')
-            .execute();
+            // Batch update ONLY — does NOT load full entities
+            const result = await this.buyRequestsRepository
+                .createQueryBuilder()
+                .update(BuyRequest)
+                .set({
+                    orderState: OrderState.COMPLETED,
+                    orderStateTime: () => 'CURRENT_TIMESTAMP',
+                })
+                .where('orderState = :delivered', { delivered: OrderState.DELIVERED })
+                .andWhere('orderStateTime < :cutoff', { cutoff })
+                .andWhere('isDeleted = FALSE')
+                .execute();
 
-        if (result.affected && result.affected > 0) {
-            this.logger.log(`✅ Auto-completed ${result.affected} orders`);
-        } else {
-            this.logger.debug('No eligible orders for auto-completion');
+            if (result.affected && result.affected > 0) {
+                this.logger.log(`✅ Auto-completed ${result.affected} orders`);
+            } else {
+                this.logger.debug('No eligible orders for auto-completion');
+            }
+
+        } catch (error) {
+            this.logger.error('❌ Scheduler failed:', error);
         }
     }
 }

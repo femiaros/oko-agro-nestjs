@@ -49,10 +49,10 @@ export class BuyRequest {
   @Column({ type: 'varchar' })
   description: string | null;
 
-  @ManyToOne(() => Crop, { eager: true })
+  @ManyToOne(() => Crop, { eager: false })
   cropType: Crop;
 
-  @ManyToOne(() => QualityStandard, { eager: true, nullable: true })
+  @ManyToOne(() => QualityStandard, { nullable: true })
   qualityStandardType: QualityStandard | null;
 
   @Column({ type: 'varchar' })
@@ -79,10 +79,10 @@ export class BuyRequest {
   @Column({ default: false })
   isGeneral: boolean;
 
-  @ManyToOne(() => User, (user) => user.buyRequestsAsBuyer, { eager: true })
+  @ManyToOne(() => User, (user) => user.buyRequestsAsBuyer, { eager: false })
   buyer: User;
 
-  @ManyToOne(() => User, (user) => user.buyRequestsAsSeller, { nullable: true, eager: true })
+  @ManyToOne(() => User, (user) => user.buyRequestsAsSeller, { nullable: true })
   seller: User | null;
   
   @ManyToOne(() => Product, (product) => product.buyRequests, { nullable: true })
@@ -108,6 +108,9 @@ export class BuyRequest {
 
   @Column({ type: 'boolean', default: false })
   isDeleted: boolean;
+
+  @Column({ type: 'varchar', nullable: true })
+  removeLater: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

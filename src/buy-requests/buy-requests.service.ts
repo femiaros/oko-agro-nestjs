@@ -37,6 +37,7 @@ export class BuyRequestsService {
             if (dto.isGeneral){
                 if(dto.sellerId) throw new BadRequestException(`General buy request doesn't require a sellerId to be provided at initiation`);
                 if(dto.productId) throw new BadRequestException(`General buy request doesn't require a productId to be provided at initiation`);
+                if(purchaseOrderDoc) throw new BadRequestException(`General buy request creation doesn't require purchaseOrderDoc upload`);
             }
 
             // Allowed docsize - 2mb
@@ -48,15 +49,17 @@ export class BuyRequestsService {
             // if (!isValidBase64Size(purchaseOrderDoc, docSize))
             //     throw new BadRequestException('PurchaseOrderDoc: Image size must be 2MB or less');
 
-            const detected = detectMimeTypeFromBase64(purchaseOrderDoc);
+            if (purchaseOrderDoc){
+                const detected = detectMimeTypeFromBase64(purchaseOrderDoc);
 
-            if (!detected || !this.supported.includes(detected)) {
-                throw new BadRequestException( 'PurchaseOrderDoc must be JPEG, PNG, or PDF format.' );
-            }
+                if (!detected || !this.supported.includes(detected)) {
+                    throw new BadRequestException( 'PurchaseOrderDoc must be JPEG, PNG, or PDF format.' );
+                }
 
-            // Validate size: 2MB
-            if (!isValidBase64SizeGeneric(purchaseOrderDoc, docSize)) {
-                throw new BadRequestException('PurchaseOrderDoc must be 2MB or less.');
+                // Validate size: 2MB
+                if (!isValidBase64SizeGeneric(purchaseOrderDoc, docSize)) {
+                    throw new BadRequestException('PurchaseOrderDoc must be 2MB or less.');
+                }
             }
 
             const crop = await this.cropsRepository.findOne({ where: { id: dto.cropId } });
@@ -108,10 +111,12 @@ export class BuyRequestsService {
             const savedBuyRequest = await this.buyRequestsRepository.save(buyRequest);
 
             // Upload doc
-            const uploadedDoc = await this.fileService.uploadFile(purchaseOrderDoc, `PurchaseOrderDoc`, savedBuyRequest);
-
-            // Attach OneToOne so TypeORM does not break
-            savedBuyRequest.purchaseOrderDoc = uploadedDoc;
+            if (purchaseOrderDoc){
+                const uploadedDoc = await this.fileService.uploadFile(purchaseOrderDoc, `PurchaseOrderDoc`, savedBuyRequest);
+                // Attach OneToOne so TypeORM does not break
+                savedBuyRequest.purchaseOrderDoc = uploadedDoc;
+            }
+            
             await this.buyRequestsRepository.save(savedBuyRequest);
 
             return {
@@ -221,7 +226,7 @@ export class BuyRequestsService {
                     throw new BadRequestException('Invalid productId or product does not belong to this farmer', );
                 }
 
-                buyRequest.status = BuyRequestStatus.ACCEPTED;
+                buyRequest.status = BuyRequestStatus.ACCEPTED; // general can only set status to accepted
                 buyRequest.seller = currentUser;
                 buyRequest.product = product;
                 // OrderState updates
@@ -413,6 +418,7 @@ export class BuyRequestsService {
                 .leftJoinAndSelect('buyRequest.buyer', 'buyer')
                 .leftJoinAndSelect('buyRequest.seller', 'seller')
                 .leftJoinAndSelect('buyRequest.product', 'product')
+                .leftJoinAndSelect('buyRequest.purchaseOrderDoc', 'purchaseOrderDoc')
                 .where('buyRequest.isDeleted = false');
 
             if (status) {
@@ -549,6 +555,7 @@ export class BuyRequestsService {
                 .leftJoinAndSelect('buyRequest.buyer', 'buyer')
                 .leftJoinAndSelect('buyRequest.seller', 'seller')
                 .leftJoinAndSelect('buyRequest.product', 'product')
+                .leftJoinAndSelect('buyRequest.purchaseOrderDoc', 'purchaseOrderDoc')
                 .where('buyRequest.isDeleted = false');
 
             if (user.role === UserRole.FARMER) {
