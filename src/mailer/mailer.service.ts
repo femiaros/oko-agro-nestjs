@@ -1,21 +1,29 @@
-import { Injectable, Logger } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Resend } from 'resend';
 
 @Injectable()
-export class MailerService {
+export class MailerService implements OnModuleInit {
   private readonly logger = new Logger(MailerService.name);
-  private transporter: nodemailer.Transporter;
+  private resend: Resend;
+  private fromEmail: string;
 
-  constructor() {
-    this.transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587, // TLS (STARTTLS)
-      secure: false, // must be false for port 587
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
-      },
-    });
+  onModuleInit() {
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.RESEND_FROM_EMAIL;
+
+    if (!apiKey) {
+      this.logger.error('RESEND_API_KEY is not set in environment variables');
+      throw new Error('RESEND_API_KEY is not configured');
+    }
+
+    if (!from) {
+      this.logger.error('RESEND_FROM_EMAIL is not set in environment variables');
+      throw new Error('RESEND_FROM_EMAIL is not configured');
+    }
+
+    this.resend = new Resend(apiKey);
+    this.fromEmail = from;
+    this.logger.log('Resend MailerService initialized');
   }
 
   async sendMail(
@@ -24,21 +32,21 @@ export class MailerService {
     text: string,
     html?: string,
   ): Promise<{ success: boolean; message: string }> {
-    const mailOptions = {
-      from: `"OkoAgro" <${"oko@agro.ng"}>`,
-      to,
-      subject,
-      text,
-      html,
-    };
-
     try {
-      await this.transporter.sendMail(mailOptions);
-      this.logger.log(`✅ Email sent successfully to ${to}`);
+      // `emails.send` returns a promise; adjust if your Resend SDK version returns different shape
+      const result = await this.resend.emails.send({
+        from: this.fromEmail, // guaranteed to be set in onModuleInit
+        to,
+        subject,
+        text,
+        html,
+      });
+
+      this.logger.log(`✅ Email sent to ${to}`);
       return { success: true, message: 'Email sent successfully' };
-    } catch (error) {
-      this.logger.error(`❌ Failed to send email to ${to}: ${error.message}`);
-      return { success: false, message: 'Failed to send email' };
+    } catch (error: any) {
+      this.logger.error(`❌ Failed to send email to ${to}: ${error?.message ?? String(error)}`);
+      return { success: false, message: `Failed to send email: ${error?.message ?? 'unknown error'}` };
     }
   }
 }
