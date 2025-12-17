@@ -1,5 +1,5 @@
-import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, MinDate } from 'class-validator';
-import { EventReferenceType } from '../entities/event.entity';
+import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, MinDate } from 'class-validator';
+import { CropQuantityUnit, EventReferenceType } from '../entities/event.entity';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -37,4 +37,31 @@ export class CreateEventDto {
   @ApiProperty({ example: '2025-10-01', description: 'EventDate (YYYY-MM-DD)' })
   @IsDateString()
   eventDate: Date;
+
+  // Harvest-related fields
+
+  @ApiProperty({ example: true, description:'Indicates whether this event is a harvest event', default: false })
+  @IsBoolean()
+  @IsOptional()
+  isHarvestEvent?: boolean = false;
+
+  @ApiProperty({ example: 'uuid-of-crop', description: 'Crop ID (required when isHarvestEvent is true and referenceType is CUSTOM)', required: false})
+  @IsUUID()
+  @IsOptional()
+  cropId?: string;
+
+  @ApiProperty({ example: '200', description: 'Quantity of crop harvested (required for custom harvest events)', required: false})
+  @IsString()
+  @IsOptional()
+  cropQuantity?: string;
+
+  @ApiProperty({
+    enum: CropQuantityUnit,
+    example: CropQuantityUnit.TONNE,
+    description: 'Unit of crop quantity (required for custom harvest events)',
+    required: false
+  })
+  @IsEnum(CropQuantityUnit)
+  @IsOptional()
+  cropQuantityUnit?: CropQuantityUnit;
 }

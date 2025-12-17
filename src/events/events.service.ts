@@ -2,30 +2,34 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { handleServiceError } from 'src/common/utils/error-handler.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Event, EventStatus } from '../events/entities/event.entity';
+import { Event, EventReferenceType, EventStatus } from '../events/entities/event.entity';
 import { User } from '../users/entities/user.entity';
 import { Product } from '../products/entities/product.entity';
 import { CreateEventDto } from './dtos/create-event.dto';
 import { UpdateEventDto } from './dtos/update-event.dto';
+import { Crop } from 'src/crops/entities/crop.entity';
+import { GetEventsQueryDto } from './dtos/get-events-query.dto';
+import { instanceToPlain } from 'class-transformer';
 
 @Injectable()
 export class EventsService {
     constructor(
         @InjectRepository(Event) private readonly eventsRepository: Repository<Event>,
+        @InjectRepository(Crop) private readonly cropsRepository: Repository<Crop>,
     ) {}
 
-    async createEvent(dto: CreateEventDto & { owner: User; product?: Product }): Promise<any> {
+    async createEvent( dto: CreateEventDto & { owner: User; product?: Product }): Promise<any> {
         try {
-            // Check if eventDate is in the past
-            const today = new Date();
-            if (new Date(dto.eventDate) <= today) {
-                throw new BadRequestException('eventDate must be a future date');
-            }
-
+            // Date validation
+            const now = new Date();
             const eventDate = new Date(dto.eventDate);
 
-            // Normalize today (ignoring time)
-            // const today = new Date();
+            if (eventDate <= now) {
+            throw new BadRequestException('eventDate must be a future date');
+            }
+
+            // Normalize dates (ignore time)
+            const today = new Date();
             today.setHours(0, 0, 0, 0);
 
             const eventDay = new Date(eventDate);
@@ -41,15 +45,74 @@ export class EventsService {
                 throw new BadRequestException('eventDate must be today or a future date');
             }
 
+            // Harvest logic
+
+            const {
+                cropId,
+                cropQuantity,
+                cropQuantityUnit,
+                isHarvestEvent,
+                referenceType,
+            } = dto;
+
+            const anyCropFieldProvided =
+                !!cropId || !!cropQuantity || !!cropQuantityUnit;
+
+            // If any crop-related field is provided → it must be a harvest event
+            if (anyCropFieldProvided) {
+                if (!isHarvestEvent) {
+                    throw new BadRequestException(
+                        'isHarvestEvent must be true when crop details are provided',
+                    );
+                }
+
+                if (!cropId || !cropQuantity || !cropQuantityUnit) {
+                    throw new BadRequestException(
+                        'cropId, cropQuantity, and cropQuantityUnit are all required for a harvest event',
+                    );
+                }
+
+                // Only CUSTOM events can define crop-based harvests
+                if (referenceType !== EventReferenceType.CUSTOM) {
+                    throw new BadRequestException(
+                        'Only custom events can define crop-based harvest events',
+                    );
+                }
+            }
+
+            // Attach crop if provided
+            let crop: Crop | null = null;
+
+            if (cropId) {
+                crop = await this.cropsRepository.findOne({
+                    where: { id: cropId },
+                });
+
+                if (!crop) {
+                    throw new BadRequestException('Invalid cropId');
+                }
+            }
+
+            // Create Event
             const event = this.eventsRepository.create({
-                ...dto,
+                name: dto.name,
+                description: dto.description,
+                referenceType: dto.referenceType,
+                referenceId: dto.referenceId ?? null,
+                eventDate,
+                status,
                 owner: dto.owner,
                 product: dto.product ?? null,
-                status
+
+                // harvest fields
+                isHarvestEvent: isHarvestEvent ?? false,
+                crop,
+                cropQuantity: cropQuantity ?? null,
+                cropQuantityUnit: cropQuantityUnit ?? null,
             });
 
             const savedEvent = await this.eventsRepository.save(event);
-            
+
             return {
                 statusCode: 201,
                 message: 'Event created successfully',
@@ -154,7 +217,7 @@ export class EventsService {
                     owner: { id: userId },
                     isDeleted: false, // exclude soft-deleted
                 },
-                relations: ['owner', 'product'],
+                relations: ['crop', 'owner', 'product'],
                 order: { eventDate: 'ASC' },
             });
 
@@ -196,4 +259,52 @@ export class EventsService {
             handleServiceError(error, 'An error occurred');
         }
     }
+
+    async getAllEvents(query: GetEventsQueryDto): Promise<any> {
+        const {
+            pageNumber = 1,
+            pageSize,
+            isHarvestEvent,
+        } = query;
+
+        try {
+            const qb = this.eventsRepository
+                .createQueryBuilder('event')
+                .leftJoinAndSelect('event.owner', 'owner')
+                .leftJoinAndSelect('event.crop', 'crop')
+                .leftJoinAndSelect('event.product', 'product')
+                .where('event.isDeleted = false')
+                .orderBy('event.createdAt', 'DESC');
+
+            if (isHarvestEvent) {
+                qb.andWhere('event.isHarvestEvent = :isHarvestEvent', {
+                    isHarvestEvent,
+                });
+            }
+
+            // Count total before pagination
+            const totalRecord = await qb.getCount();
+
+            // Apply pagination ONLY if pageSize is provided
+            if (pageSize) {
+                qb.skip((pageNumber - 1) * pageSize).take(pageSize);
+            }
+
+            const items = await qb.getMany();
+
+            return {
+                statusCode: 200,
+                message: 'Events retrieved successfully',
+                data: {
+                    items: instanceToPlain(items),
+                    totalRecord,
+                    pageNumber,
+                    pageSize: pageSize ?? totalRecord,
+                },
+            };
+        } catch (error) {
+            handleServiceError(error, 'An error occurred while retrieving events');
+        }
+    }
+
 }

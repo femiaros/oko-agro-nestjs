@@ -37,7 +37,7 @@ export class Product {
   @Column({ type: 'varchar' })
   name: string;
 
-  @ManyToOne(() => Crop, (crop) => crop.products, { eager: true })
+  @ManyToOne(() => Crop, (crop) => crop.products, { eager: false })
   cropType: Crop;
 
   @Column({ type: 'varchar' })

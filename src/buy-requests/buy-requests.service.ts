@@ -17,6 +17,9 @@ import { OngoingBuyRequestOrdersQueryDto } from './dtos/ongoing-buy-request-orde
 import { detectMimeTypeFromBase64, isValidBase64Size, isValidBase64SizeGeneric, isValidImageType } from 'src/common/utils/base64.util';
 import { PurchaseOrderDocFilesService } from 'src/purchase-order-doc-files/purchase-order-doc-files.service';
 import { UpdatePurchaseOrderDocDto } from './dtos/update-purchase-order-doc.dto';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { NotificationType, RelatedEntityType } from 'src/notifications/entities/notification.entity';
+import { DirectBuyRequestDto } from './dtos/direct-buy-request.dto';
 
 @Injectable()
 export class BuyRequestsService {
@@ -27,6 +30,7 @@ export class BuyRequestsService {
         @InjectRepository(Product) private readonly productsRepository: Repository<Product>,
         private readonly usersService: UsersService,
         private readonly fileService: PurchaseOrderDocFilesService,
+        private readonly notificationsService: NotificationsService,
     ) {}
 
     
@@ -38,6 +42,10 @@ export class BuyRequestsService {
                 if(dto.sellerId) throw new BadRequestException(`General buy request doesn't require a sellerId to be provided at initiation`);
                 if(dto.productId) throw new BadRequestException(`General buy request doesn't require a productId to be provided at initiation`);
                 if(purchaseOrderDoc) throw new BadRequestException(`General buy request creation doesn't require purchaseOrderDoc upload`);
+            }else{
+                if(!dto.sellerId) throw new BadRequestException(`buyRequest requires a sellerId to be provided at initiation`);
+                if(!dto.productId) throw new BadRequestException(`buyRequest requires a productId to be provided at initiation`);
+                if(!purchaseOrderDoc) throw new BadRequestException(`buyRequest requires purchaseOrderDoc upload`);
             }
 
             // Allowed docsize - 2mb
@@ -119,6 +127,19 @@ export class BuyRequestsService {
             
             await this.buyRequestsRepository.save(savedBuyRequest);
 
+            // Not-General: Notify the seller request is directed to
+            if (!dto.isGeneral && seller){
+                await this.notificationsService.createNotification({
+                    user: seller,
+                    type: NotificationType.BuyRequest,
+                    title: `Direct Buy Request REQ-${requestNumber}`,
+                    message: 
+                        `You have received a direct buy request REQ-${requestNumber} From ${buyer?.companyName?.toUpperCase()}. \n` + `Buyer location: ${buyer.state}, ${buyer.country}`, 
+                    relatedEntityType: RelatedEntityType.BuyRequest,
+                    relatedEntityId: savedBuyRequest.id
+                });
+            }
+
             return {
                 statusCode: 201,
                 message: 'BuyRequest created successfully!',
@@ -145,9 +166,14 @@ export class BuyRequestsService {
                 throw new ForbiddenException('You are not authorized to update this buy request');
             }
 
-            // Block editing if already accepted
-            if (buyRequest.status === BuyRequestStatus.ACCEPTED) {
-                throw new BadRequestException('Accepted buy requests cannot be updated');
+            // Block editing
+            const editableStatuses = [
+                BuyRequestStatus.PENDING,
+                BuyRequestStatus.REJECTED,
+            ];
+
+            if (!editableStatuses.includes(buyRequest.status)) {
+                throw new BadRequestException('BuyRequest cannot be updated');
             }
 
             // Handle qualityStandard change
@@ -204,37 +230,50 @@ export class BuyRequestsService {
 
             if (!buyRequest) throw new NotFoundException('BuyRequest not found');
 
+            const editableStates = [
+                OrderState.AWAITING_SHIPPING,
+            ];
+
+            if (buyRequest.orderState != null && !editableStates.includes(buyRequest.orderState)) {
+                throw new BadRequestException('BuyRequest cannot be updated');
+            }
+
             // Only farmer (seller) can update status
             // if (currentUser.role !== 'farmer')
             // throw new BadRequestException('Only farmers can update requests');
 
             // Case: General request
             if (buyRequest.isGeneral) {
-                if (dto.status !== BuyRequestStatus.ACCEPTED) {
-                    throw new BadRequestException('Farmer can only accept general buyRequests');
-                }
+                
+                // FOR NOW - isGeneral case needs to be directed to a seller first, bfor its status can be changed
+                throw new BadRequestException('BuyRequest is general, contact the buyer');
 
-                if (!dto.productId) {
-                    throw new BadRequestException('Provide a productId to accept a general buyRequest');
-                }
+                // if (dto.status !== BuyRequestStatus.ACCEPTED) {
+                //     throw new BadRequestException('Farmer can only accept general buyRequests');
+                // }
 
-                const product = await this.productsRepository.findOne({
-                    where: { id: dto.productId, owner: { id: currentUser.id }, isDeleted: false },
-                });
+                // if (!dto.productId) {
+                //     throw new BadRequestException('Provide a productId to accept a general buyRequest');
+                // }
 
-                if (!product) {
-                    throw new BadRequestException('Invalid productId or product does not belong to this farmer', );
-                }
+                // const product = await this.productsRepository.findOne({
+                //     where: { id: dto.productId, owner: { id: currentUser.id }, isDeleted: false },
+                // });
 
-                buyRequest.status = BuyRequestStatus.ACCEPTED; // general can only set status to accepted
-                buyRequest.seller = currentUser;
-                buyRequest.product = product;
-                // OrderState updates
-                buyRequest.orderState = OrderState.AWAITING_SHIPPING;
-                buyRequest.orderStateTime = new Date();
+                // if (!product) {
+                //     throw new BadRequestException('Invalid productId or product does not belong to this farmer', );
+                // }
+
+                // buyRequest.status = BuyRequestStatus.ACCEPTED; // general can only set status to accepted
+                // buyRequest.seller = currentUser;
+                // buyRequest.product = product;
+                // // OrderState updates
+                // buyRequest.orderState = OrderState.AWAITING_SHIPPING;
+                // buyRequest.orderStateTime = new Date();
             }
             // Case: Directed buyrequest
             else {
+
                 if (!buyRequest.seller || buyRequest.seller.id !== currentUser.id) {
                     throw new ForbiddenException('This farmer is not authorized to update this request');
                 }
@@ -246,6 +285,10 @@ export class BuyRequestsService {
                 }
 
                 buyRequest.status = dto.status;
+
+                if (dto.status === BuyRequestStatus.ACCEPTED && !dto.productId){
+                    throw new BadRequestException('BuyRequest must be accepted with a productId');
+                } 
 
                 // If accepted, optionally update product
                 if (dto.status === BuyRequestStatus.ACCEPTED && dto.productId) {
@@ -261,11 +304,45 @@ export class BuyRequestsService {
                     // OrderState updates
                     buyRequest.orderState = OrderState.AWAITING_SHIPPING;
                     buyRequest.orderStateTime = new Date();
+
+                    // Notification to Buyer
+                    await this.notificationsService.createNotification({
+                        user: buyRequest.buyer,
+                        type: NotificationType.BuyRequest,
+                        title: `Buy Request Accepted: REQ-${buyRequest.requestNumber}`,
+                        message: 
+                            `Your buy request REQ-${buyRequest.requestNumber} has been accepted by ${buyRequest.seller.firstName.toLowerCase()}. \n` + 
+                            `The order is now awaiting shipping`, 
+                        relatedEntityType: RelatedEntityType.BuyRequest,
+                        relatedEntityId: buyRequest.id
+                    });
+                }
+
+                if (dto.status !== BuyRequestStatus.ACCEPTED) {
+                    buyRequest.product = null;
+                    // OrderState updates
+                    buyRequest.orderState = null;
+                    buyRequest.orderStateTime = null;
                 }
             }
 
             const savedBuyRequest = await this.buyRequestsRepository.save(buyRequest);
 
+            // Notification to Buyer
+            if (dto.status !== BuyRequestStatus.ACCEPTED) {
+                var title = `Buy Request ${savedBuyRequest.status.toLowerCase()}: REQ-${savedBuyRequest.requestNumber}`;
+                var message = `Your buy request REQ-${buyRequest.requestNumber} has been ${savedBuyRequest.status.toLowerCase()} by ${buyRequest.seller.firstName.toLowerCase()}.`; 
+
+                await this.notificationsService.createNotification({
+                    user: buyRequest.buyer,
+                    type: NotificationType.BuyRequest,
+                    title,
+                    message,
+                    relatedEntityType: RelatedEntityType.BuyRequest,
+                    relatedEntityId: buyRequest.id
+                });
+            }
+            
             return {
                 statusCode: 200,
                 message: `BuyRequest status updated successfully`,
@@ -278,27 +355,32 @@ export class BuyRequestsService {
 
     async updateOrderState(dto: UpdateOrderStateDto, currentUser: User): Promise<any> {
         try {
-                const buyRequest = await this.buyRequestsRepository.findOne({
-                    where: { id: dto.buyRequestId, isDeleted: false },
-                    relations: ['buyer', 'seller'],
-                });
+            const buyRequest = await this.buyRequestsRepository.findOne({
+                where: { id: dto.buyRequestId, isDeleted: false },
+                relations: ['buyer', 'seller'],
+            });
 
-                if (!buyRequest) {
-                    throw new NotFoundException('BuyRequest not found');
-                }
+            if (!buyRequest) {
+                throw new NotFoundException('BuyRequest not found');
+            }
+
+            if (buyRequest.orderState === OrderState.COMPLETED) {
+                throw new ForbiddenException('BuyRequest is completed');
+            }
 
             // ROLE-BASED LOGIC
-            const isAdmin = currentUser.role === UserRole.ADMIN || UserRole.SUPER_ADMIN;
+            const isAdmin = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPER_ADMIN;
             const isBuyer = currentUser.id === buyRequest.buyer?.id;
+            const isSeller = currentUser.id === buyRequest.seller?.id;
 
-            // 1️⃣ Only Admin or Buyer-Linked-to-Request can access this endpoint
-            if (!isAdmin && !isBuyer) {
+            // 1️⃣ Only Admin or Buyer/Seller-Linked-to-Request can access this endpoint
+            if (!isAdmin && !isBuyer && !isSeller) {
                 throw new ForbiddenException('You are not authorized to update order state for this request');
             }
 
             // 2️⃣ Handle state-specific permissions
-            if (dto.orderState === OrderState.IN_TRANSIT && !isAdmin) {
-                throw new ForbiddenException('Only admin can set order state to in_transit');
+            if (dto.orderState === OrderState.IN_TRANSIT && !isAdmin && !isSeller) {
+                throw new ForbiddenException('Only admin or seller can set order state to in_transit');
             }
 
             if (dto.orderState === OrderState.AWAITING_SHIPPING) {
@@ -313,8 +395,8 @@ export class BuyRequestsService {
                 throw new ForbiddenException('Order completion is automated');
             }
 
-            // ✅ HANDLE ADMIN CONFIRM PAYMENT → IN_TRANSIT
-            if (isAdmin && dto.orderState === OrderState.IN_TRANSIT) {
+            // ✅ HANDLE ADMIN/SELLER CONFIRM PAYMENT → IN_TRANSIT
+            if ((isAdmin || isSeller) && dto.orderState === OrderState.IN_TRANSIT) {
                 // Convert string values to numbers safely
                 const quantity = parseFloat(buyRequest.productQuantity);
                 const pricePerUnit = parseFloat(buyRequest.pricePerUnitOffer);
@@ -329,6 +411,17 @@ export class BuyRequestsService {
                 buyRequest.paymentAmount = totalAmount.toString(); // store as string
                 buyRequest.paymentConfirmed = true;
                 buyRequest.paymentConfirmedAt = new Date();
+
+
+                // Notification to Buyer
+                await this.notificationsService.createNotification({
+                    user: buyRequest.buyer,
+                    type: NotificationType.BuyRequest,
+                    title: `Order In Transit: REQ-${buyRequest.requestNumber}`,
+                    message: `Buy request REQ-${buyRequest.requestNumber} order is in transit.`,
+                    relatedEntityType: RelatedEntityType.BuyRequest,
+                    relatedEntityId: buyRequest.id
+                });
             }
 
             // ✅ Update orderState + orderStateTime
@@ -336,6 +429,21 @@ export class BuyRequestsService {
             buyRequest.orderStateTime = new Date();
 
             const updatedBuyRequest = await this.buyRequestsRepository.save(buyRequest);
+
+            // Notification to Seller
+            if(buyRequest.seller != null){
+                var title = `Order Delivered: REQ-${buyRequest.requestNumber}`;
+                var message = `Your buy request REQ-${buyRequest.requestNumber} has been delivered to ${buyRequest.buyer.companyName?.toUpperCase()}.`; 
+
+                await this.notificationsService.createNotification({
+                    user: buyRequest.seller,
+                    type: NotificationType.BuyRequest,
+                    title,
+                    message,
+                    relatedEntityType: RelatedEntityType.BuyRequest,
+                    relatedEntityId: buyRequest.id
+                });
+            }
 
             return {
                 statusCode: 200,
@@ -595,6 +703,73 @@ export class BuyRequestsService {
             };
         } catch (error) {
             handleServiceError(error, 'An error occurred while fetching user buy requests');
+        }
+    }
+
+    async directBuyRequest( buyRequestId: string, dto: DirectBuyRequestDto, buyer: User): Promise<any> {
+        try {
+            const buyRequest = await this.buyRequestsRepository.findOne({
+                where: {
+                    id: buyRequestId,
+                    isDeleted: false,
+                },
+                relations: ['buyer', 'seller'],
+            });
+
+            if (!buyRequest) {
+                throw new NotFoundException('BuyRequest not found');
+            }
+
+            // Buyer must own the request
+            if (buyRequest.buyer.id !== buyer.id) {
+                throw new ForbiddenException( 'You are not allowed to direct this buy request' );
+            }
+
+            // Must be general
+            if (!buyRequest.isGeneral) {
+                throw new BadRequestException('Only general buy requests can be directed');
+            }
+
+            // Already directed
+            if (buyRequest.seller) {
+                throw new BadRequestException( 'Buy request has already been directed to a seller');
+            }
+
+            // Validate seller
+            const seller = await this.usersService.findUserEntity(dto.sellerId);
+
+            if (!seller || seller.role !== UserRole.FARMER) {
+                throw new BadRequestException( 'Selected seller must be a valid farmer', );
+            }
+
+            // Direct request
+            buyRequest.seller = seller;
+            buyRequest.isGeneral = false;
+
+            const saved = await this.buyRequestsRepository.save(buyRequest);
+
+            // Notify seller
+            await this.notificationsService.createNotification({
+                user: seller,
+                type: NotificationType.BuyRequest,
+                title: `Direct Buy Request REQ-${buyRequest.requestNumber}`,
+                message:
+                    `You have received a direct buy request REQ-${buyRequest.requestNumber} from ${buyer?.companyName?.toUpperCase()}. \n` +
+                    `Buyer location: ${buyer.state}, ${buyer.country}`,
+                relatedEntityType: RelatedEntityType.BuyRequest,
+                relatedEntityId: buyRequest.id,
+            });
+
+            return {
+                statusCode: 200,
+                message: 'Buy request directed successfully',
+                data: {
+                    id: saved.id,
+                    sellerId: seller.id,
+                },
+            };
+        } catch (error) {
+            handleServiceError(error, 'An error occurred, failed to direct buy request');
         }
     }
 

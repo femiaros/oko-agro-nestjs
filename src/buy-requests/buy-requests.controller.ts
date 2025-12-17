@@ -16,11 +16,12 @@ import {
     BuyRequestUpdateResponseDto, BuyRequestUpdateStatusResponseDto,
     BuyRequestFindResponseDto, BuyRequestFindByUserIdResponseDto,
     BuyRequestUpdateOrderStateResponseDto,BuyRequestOngoingOrderListResponseDto,
-    PurchaseOrderDeleteResponseDto
+    PurchaseOrderDeleteResponseDto, DirectBuyRequestResponseDto
 } from './dtos/response.dto';
 import { UpdateOrderStateDto } from './dtos/update-order-state.dto';
 import { OngoingBuyRequestOrdersQueryDto } from './dtos/ongoing-buy-request-orders-query.dto';
 import { UpdatePurchaseOrderDocDto } from './dtos/update-purchase-order-doc.dto';
+import { DirectBuyRequestDto } from './dtos/direct-buy-request.dto';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -65,8 +66,8 @@ export class BuyRequestsController {
     @ApiOperation({ summary: 'Update order state of a BuyRequest (Admin & Buyer only)' })
     @ApiResponse({ status: 200, description: 'Successfully updated buy request order state', type: BuyRequestUpdateOrderStateResponseDto })
     @Put('update-order-state')
-    @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.PROCESSOR)
-    @UseGuards(RolesGuard)
+    // @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.PROCESSOR)
+    // @UseGuards(RolesGuard)
     @HttpCode(HttpStatus.OK)
     async updateOrderState( @Body() dto: UpdateOrderStateDto, @CurrentUser() currentUser: User,) {
         return this.buyRequestsService.updateOrderState(dto, currentUser);
@@ -113,6 +114,7 @@ export class BuyRequestsController {
     @Get('ongoing-buyrequest')
     @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
     @UseGuards(RolesGuard)
+    @HttpCode(HttpStatus.OK)
     async findOngoingBuyRequestOrders(
         @Query() query: OngoingBuyRequestOrdersQueryDto
     ) {
@@ -135,6 +137,20 @@ export class BuyRequestsController {
     @HttpCode(HttpStatus.OK)
     async findUserBuyRequests(@Param('userId') userId: string) {
         return this.buyRequestsService.findUserBuyRequests(userId);
+    }
+
+    @Put('direct/:buyRequestId')
+    @ApiOperation({ summary: 'Direct a general buy request to a preferred seller'})
+    @ApiResponse({ status: 200, description: 'Buy request directed successfully', type: DirectBuyRequestResponseDto })
+    @Roles(UserRole.PROCESSOR)
+    @UseGuards(RolesGuard)
+    @HttpCode(HttpStatus.OK)
+    async directBuyRequest( 
+        @Param('buyRequestId') buyRequestId: string, 
+        @Body() dto: DirectBuyRequestDto, 
+        @CurrentUser() buyer: User,
+    ) {
+        return this.buyRequestsService.directBuyRequest( buyRequestId,dto, buyer,);
     }
 
     @ApiOperation({ summary: `Upload PurchaseOrderDoc for a buyRequest (Only the owner` })

@@ -10,6 +10,12 @@ import {
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Product } from 'src/products/entities/product.entity';
+import { Crop } from 'src/crops/entities/crop.entity';
+
+export enum CropQuantityUnit {
+  KILOGRAM = 'kilogram',
+  TONNE = 'tonne',
+}
 
 export enum EventStatus {
   UPCOMING = 'upcoming',
@@ -32,6 +38,18 @@ export class Event {
 
   @Column({ type: 'text' })
   description: string;
+
+  @ManyToOne(() => Crop, (crop) => crop.events, { nullable: true })
+  crop: Crop | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  cropQuantity: string | null;
+  
+  @Column({ type: 'enum', enum: CropQuantityUnit, enumName: 'crop_quantity_unit_enum', nullable: true })
+  cropQuantityUnit: CropQuantityUnit | null;
+
+  @Column({ type: 'boolean', default: false })
+  isHarvestEvent: boolean;
 
   @Column({ type: 'uuid', nullable: true })
   referenceId: string | null;

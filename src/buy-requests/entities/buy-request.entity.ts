@@ -22,6 +22,10 @@ export enum BuyRequestStatus {
 
 export enum PaymentMethod {
   PAY_ON_DELIVERY = 'pay_on_delivery',
+  CASH_AND_CARRY = 'cash_and_carry',
+  FIVE_DAYS_PD = 'five_days_post_delivery',
+  FIFTEEN_DAYS_PD = 'fifteen_days_post_delivery',
+  THIRTY_DAYS_PD = 'thirty_days_post_delivery',
 }
 
 export enum BuyRequestQuantityUnit {
@@ -101,16 +105,13 @@ export class BuyRequest {
   paymentAmount: string | null;
 
   @Column({ type: 'boolean', default: false })
-  paymentConfirmed: boolean;
+  paymentConfirmed: boolean; 
 
   @Column({ type: 'timestamptz', nullable: true })
   paymentConfirmedAt: Date | null;  
 
   @Column({ type: 'boolean', default: false })
   isDeleted: boolean;
-
-  @Column({ type: 'varchar', nullable: true })
-  removeLater: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

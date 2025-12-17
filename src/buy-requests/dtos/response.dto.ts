@@ -17,6 +17,14 @@ export class BuyRequestPaginationData {
     pageSize: number;
 }
 
+export class DirectBuyRequestResponseData {
+    @ApiProperty({ example: "l89vuh-uhohou-gfyrf-5tgygv" })
+    id: string;
+
+    @ApiProperty({ example: "l89vuh-uhohou-gfyrf-5tgygv" })
+    sellerId: string;
+}
+
 export class BuyRequestCreateResponseDto extends ApiResponseDto<BuyRequest> {
     @ApiProperty({ example: 201 })
     declare statusCode: number;
@@ -125,4 +133,12 @@ export class PurchaseOrderDeleteResponseDto {
 
     @ApiProperty({ type: PurchaseOrderDeleteResponseData })
     data: PurchaseOrderDeleteResponseData;
+}
+
+export class DirectBuyRequestResponseDto extends ApiResponseDto<DirectBuyRequestResponseData> {
+    @ApiProperty({ example: 'Buy request directed successfully' })
+    declare message: string;
+
+    @ApiProperty({ type: () => DirectBuyRequestResponseData })
+    declare data: DirectBuyRequestResponseData;
 }

@@ -18,6 +18,7 @@ import { BuyRequestsModule } from './buy-requests/buy-requests.module';
 import { SchedulersModule } from './schedulers/schedulers.module';
 import { AdminModule } from './admin/admin.module';
 import { PurchaseOrderDocFilesModule } from './purchase-order-doc-files/purchase-order-doc-files.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -26,7 +27,8 @@ import { PurchaseOrderDocFilesModule } from './purchase-order-doc-files/purchase
     UsersModule, AuthModule, CropsModule, FilesModule, MailerModule, 
     CertificationsModule, QualityStandardsModule, ProductsModule, 
     FarmerProductPhotoFilesModule, EventsModule, BuyRequestsModule, 
-    SchedulersModule, AdminModule, PurchaseOrderDocFilesModule, PurchaseOrderDocFilesModule
+    SchedulersModule, AdminModule, PurchaseOrderDocFilesModule, 
+    PurchaseOrderDocFilesModule, NotificationsModule
   ],
   controllers: [AppController],
   providers: [AppService],

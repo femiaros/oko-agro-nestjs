@@ -77,6 +77,7 @@ export class ProductsService {
                     referenceId: savedProduct.id,
                     product: savedProduct,
                     eventDate: dto.harvestDate,
+                    isHarvestEvent: true,
                     owner,
                 });
             }

@@ -10,13 +10,15 @@ import { QualityStandard } from 'src/quality-standards/entities/quality-standard
 import { Product } from 'src/products/entities/product.entity';
 import { PurchaseOrderDocFile } from 'src/purchase-order-doc-files/entities/purchase-order-doc-file.entity';
 import { PurchaseOrderDocFilesModule } from 'src/purchase-order-doc-files/purchase-order-doc-files.module';
+import { NotificationsModule } from 'src/notifications/notifications.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([BuyRequest, Crop, QualityStandard, Product, PurchaseOrderDocFile]),
     PurchaseOrderDocFilesModule,
     AuthModule,
-    UsersModule
+    UsersModule,
+    NotificationsModule
   ],
   providers: [BuyRequestsService],
   controllers: [BuyRequestsController]

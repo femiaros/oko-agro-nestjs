@@ -67,9 +67,7 @@ export class ProductsController {
     @Get('listings')
     @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
     @UseGuards(RolesGuard)
-    async findProductListings(
-        @Query() query: ProductListingQueryDto
-    ) {
+    async findProductListings( @Query() query: ProductListingQueryDto ) {
         return this.productsService.findProductListings(query);
     }
 

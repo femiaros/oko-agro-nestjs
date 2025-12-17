@@ -5,6 +5,7 @@ import { File } from 'src/files/entities/file.entity';
 import { QualityStandard } from 'src/quality-standards/entities/quality-standard.entity';
 import { Product } from 'src/products/entities/product.entity';
 import { Event } from 'src/events/entities/event.entity';
+import { Notification } from 'src/notifications/entities/notification.entity';
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToMany, JoinTable, OneToMany } from 'typeorm';
 import { BuyRequest } from 'src/buy-requests/entities/buy-request.entity';
 
@@ -182,7 +183,7 @@ export class User {
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 
-  // ✅ Relation: User ↔ Certifications (many-to-many)
+  // Relation: User ↔ Certifications (many-to-many)
   @ManyToMany(() => Certification, (certification) => certification.users, { cascade: true })
   @JoinTable({
     name: 'user_certifications', // join table name
@@ -191,7 +192,7 @@ export class User {
   })
   certifications: Certification[];
 
-  // ✅ Relation: User ↔ QualityStandards (many-to-many)
+  // Relation: User ↔ QualityStandards (many-to-many)
   @ManyToMany(() => QualityStandard, (qualityStandard) => qualityStandard.users, { cascade: true })
   @JoinTable({
     name: 'user_qualityStandards', // join table name
@@ -200,15 +201,19 @@ export class User {
   })
   qualityStandards: QualityStandard[];
 
-  // ✅ Products owned by this user
+  // Products owned by this user
   @OneToMany(() => Product, (product) => product.owner)
   products: Product[];
 
-  // ✅ Events created by this user
+  // Events created by this user
   @OneToMany(() => Event, (event) => event.owner)
   events: Event[];
 
-  // ✅ Relation: User ↔ Crops (many-to-many)
+  // Notifications created by this user
+  @OneToMany(() => Notification, (notification) => notification.user)
+  notifications: Notification[];
+
+  // Relation: User ↔ Crops (many-to-many)
   @ManyToMany(() => Crop, (crop) => crop.users, { cascade: true })
   @JoinTable({
     name: 'user_crops', // join table name
@@ -217,14 +222,15 @@ export class User {
   })
   crops: Crop[];
 
-  // ✅ Relation: User ↔ Files (one-to-many)
+  // Relation: User ↔ Files (one-to-many)
   @OneToMany(() => File, (file) => file.owner, { cascade: true })
   files: File[];
 
-  // ✅ Relation: User(Buyer) ↔ BuyRequests (one-to-many)
+  // Relation: User(Buyer) ↔ BuyRequests (one-to-many)
   @OneToMany(() => BuyRequest, (buyRequest) => buyRequest.buyer)
   buyRequestsAsBuyer: BuyRequest[];
-  // ✅ Relation: User(Seller) ↔ BuyRequests (one-to-many)
+
+  // Relation: User(Seller) ↔ BuyRequests (one-to-many)
   @OneToMany(() => BuyRequest, (buyRequest) => buyRequest.seller)
   buyRequestsAsSeller: BuyRequest[];
 }
