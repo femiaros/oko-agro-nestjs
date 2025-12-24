@@ -193,7 +193,7 @@ export class EventsService {
                     id: eventId,
                     isDeleted: false,
                 },
-                relations: ['owner', 'product'],
+                relations: ['crop', 'owner', 'product'],
             });
 
             if (!event) {
