@@ -6,12 +6,14 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToOne,
+  OneToMany,
 } from 'typeorm';
 import { Crop } from 'src/crops/entities/crop.entity';
 import { QualityStandard } from 'src/quality-standards/entities/quality-standard.entity';
 import { User } from 'src/users/entities/user.entity';
 import { Product, ProductQuantityUnit } from 'src/products/entities/product.entity';
 import { PurchaseOrderDocFile } from 'src/purchase-order-doc-files/entities/purchase-order-doc-file.entity';
+import { Dispute } from 'src/disputes/entities/dispute.entity';
 
 export enum BuyRequestStatus {
   PENDING = 'pending',
@@ -100,6 +102,13 @@ export class BuyRequest {
 
   @Column({ type: 'timestamptz', nullable: true })
   orderStateTime: Date | null;
+
+  @OneToMany(() => Dispute, (d) => d.buyRequest)
+  disputes: Dispute[];
+
+
+  @Column({ type: 'timestamptz', nullable: true })
+  completedAt: Date | null;
 
   @Column({ type: 'varchar', nullable: true })
   paymentAmount: string | null;

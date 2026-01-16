@@ -8,6 +8,7 @@ import { Event } from 'src/events/entities/event.entity';
 import { Notification } from 'src/notifications/entities/notification.entity';
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToMany, JoinTable, OneToMany } from 'typeorm';
 import { BuyRequest } from 'src/buy-requests/entities/buy-request.entity';
+import { Dispute } from 'src/disputes/entities/dispute.entity';
 
 export enum UserRole {
   FARMER = 'farmer',
@@ -233,4 +234,9 @@ export class User {
   // Relation: User(Seller) ↔ BuyRequests (one-to-many)
   @OneToMany(() => BuyRequest, (buyRequest) => buyRequest.seller)
   buyRequestsAsSeller: BuyRequest[];
+
+  // Relation: User can initiate many disputes
+  @OneToMany(() => Dispute, (dispute) => dispute.initiatedBy)
+  disputes: Dispute[];
+
 }

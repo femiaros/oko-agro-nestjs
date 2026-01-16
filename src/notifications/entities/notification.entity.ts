@@ -6,22 +6,44 @@ export enum NotificationType {
   BuyRequest = 'buy_request',
   OrderStatus = 'order_status',
   Contact_Message = 'contact_message',
+  Dispute = 'dispute',
+  System = 'system',
 }
 
 export enum RelatedEntityType {
   BuyRequest = 'buy_request',
   Product = 'product',
+  Dispute = 'dispute', 
+  Event = 'event',  
 }
+
+export enum NotificationAudience {
+  USER = 'user',        // personal notification
+  ADMINS = 'admins',    // visible to all admins + super_admin
+  SYSTEM = 'system',    // visible to all users
+}
+
 
 @Entity('notifications')
 @Index(['user', 'isRead'])
 @Index(['user', 'createdAt'])
+@Index(['audience', 'createdAt'])
 export class Notification {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
-    @ManyToOne(() => User, (user) => user.notifications, { onDelete: 'CASCADE' })
-    user: User;
+    @ManyToOne(() => User, (user) => user.notifications, {
+      nullable: true,
+      onDelete: 'CASCADE',
+    })
+    user: User | null;
+
+    @Column({
+      type: 'enum',
+      enum: NotificationAudience,
+      default: NotificationAudience.USER,
+    })
+    audience: NotificationAudience;
 
     @Column({ type: 'enum', enum: NotificationType })
     type: NotificationType;

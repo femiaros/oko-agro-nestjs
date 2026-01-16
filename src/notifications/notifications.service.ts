@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Notification, NotificationType, RelatedEntityType } from './entities/notification.entity';
+import { Notification, NotificationAudience, NotificationType, RelatedEntityType } from './entities/notification.entity';
 import { CreateNotificationPayload } from './interfaces/create-notification-payload';
 import { User } from 'src/users/entities/user.entity';
 import { GetNotificationsQueryDto } from './dtos/get-notifications-query.dto';
@@ -18,9 +18,24 @@ export class NotificationsService {
         @InjectRepository(BuyRequest) private readonly buyRequestsRepository: Repository<BuyRequest>
     ) {}
 
-    async createNotification( payload: CreateNotificationPayload ): Promise<Notification> {
-        const notification = this.notificationsRepository.create({
-            user: payload.user,
+    async createNotification( payload: CreateNotificationPayload): Promise<Notification> {
+        const audience = payload.audience ?? NotificationAudience.USER;
+
+        if (audience === NotificationAudience.USER && !payload.user) {
+            throw new BadRequestException('User is required for USER notifications');
+        }
+
+        if (
+            (audience === NotificationAudience.ADMINS || audience === NotificationAudience.SYSTEM) 
+            && payload.user
+        ) {
+            throw new BadRequestException('User must be null for ADMIN or SYSTEM notifications');
+        }
+
+        const notification = this.notificationsRepository.create(
+            {
+            user: payload.user ?? null,
+            audience,
             type: payload.type,
             title: payload.title,
             message: payload.message,
@@ -28,11 +43,13 @@ export class NotificationsService {
             relatedEntityId: payload.relatedEntityId,
             senderId: payload.senderId ?? null,
             senderName: payload.senderName ?? null,
-        });
+            isRead: false,
+            isDeleted: false,
+            } as Partial<Notification>,
+        );
 
-        return await this.notificationsRepository.save(notification);
+        return this.notificationsRepository.save(notification);
     }
-
 
     async getNotifications( user: User, query: GetNotificationsQueryDto ) {
         try {
