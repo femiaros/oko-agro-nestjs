@@ -8,6 +8,10 @@ import { Roles } from 'src/auth/decorators/roles.decorators';
 import { GetAllDisputesQueryDto } from './dtos/get-all-disputes-query.dto';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { CreateDisputeDto } from './dtos/create-dispute.dto';
+import { 
+    CreateDisputeResponseDto, GetAllDisputesResponseDto, GetDisputeResponseDto, 
+    RejectDisputeResponseDto, ResolveDisputeResponseDto 
+} from './dtos/response.dto';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -15,15 +19,15 @@ import { CreateDisputeDto } from './dtos/create-dispute.dto';
 export class DisputesController {
     constructor(private readonly disputesService: DisputesService) {}
 
-    @Post()
+    @Post('create')
     @ApiOperation({ summary: 'Create a dispute', description: 'Allows a buyer or seller involved in a buy request to raise a dispute'})
-    @ApiResponse({ status: 201, description: 'Dispute created successfully',})
+    @ApiResponse({ status: 201, description: 'Dispute created successfully', type: CreateDisputeResponseDto})
     async createDispute( @Body() dto: CreateDisputeDto, @CurrentUser() currentUser: User,) {
         return await this.disputesService.createDispute( dto, currentUser);
     }
 
     @ApiOperation({ summary: 'Fetch disputes', description: 'Allows admin to query all disputes',})
-    @ApiResponse({status: 200, description: 'Disputes retrieved successfully',})
+    @ApiResponse({status: 200, description: 'Disputes retrieved successfully', type: GetAllDisputesResponseDto})
     @UseGuards(RolesGuard)
     @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
     @Get('all')
@@ -32,16 +36,15 @@ export class DisputesController {
     }
 
     @Get(':id')
-    @ApiOperation({
-    summary: 'Get dispute by ID', description: 'Returns a dispute if the requester is an admin or involved in the buy request',})
-    @ApiResponse({ status: 200, description: 'Dispute retrieved successfully',})
+    @ApiOperation({ summary: 'Get dispute by ID', description: 'Returns a dispute if the requester is an admin or involved in the buy request',})
+    @ApiResponse({ status: 200, description: 'Dispute retrieved successfully', type: GetDisputeResponseDto})
     async getDisputeById( @Param('id', ParseUUIDPipe) disputeId: string, @CurrentUser() currentUser: User,) {
         return await this.disputesService.getDisputeById( disputeId, currentUser,);
     }
 
     @Patch(':id/resolve')
     @ApiOperation({ summary: 'Resolve a dispute', description: 'Allows admin to resolve an open or under-review dispute',})
-    @ApiResponse({status: 200, description: 'Dispute resolved successfully',})
+    @ApiResponse({status: 200, description: 'Dispute resolved successfully', type: ResolveDisputeResponseDto})
     @UseGuards(RolesGuard)
     @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
     async resolveDispute( @Param('id', ParseUUIDPipe) disputeId: string, @CurrentUser() currentUser: User) {
@@ -50,10 +53,11 @@ export class DisputesController {
 
     @Patch(':id/reject')
     @ApiOperation({ summary: 'Reject a dispute', description: 'Allows admin to reject an open or under-review dispute',})
-    @ApiResponse({ status: 200, description: 'Dispute rejected successfully',})
+    @ApiResponse({ status: 200, description: 'Dispute rejected successfully', type: RejectDisputeResponseDto})
     @UseGuards(RolesGuard)
     @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
     async rejectDispute( @Param('id', ParseUUIDPipe) disputeId: string, @CurrentUser() currentUser: User,) {
         return await this.disputesService.rejectDispute(disputeId, currentUser );
     }
+
 }

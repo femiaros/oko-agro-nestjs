@@ -20,6 +20,7 @@ import { AdminModule } from './admin/admin.module';
 import { PurchaseOrderDocFilesModule } from './purchase-order-doc-files/purchase-order-doc-files.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { DisputesModule } from './disputes/disputes.module';
+import { RatingsModule } from './ratings/ratings.module';
 
 @Module({
   imports: [
@@ -29,7 +30,7 @@ import { DisputesModule } from './disputes/disputes.module';
     CertificationsModule, QualityStandardsModule, ProductsModule, 
     FarmerProductPhotoFilesModule, EventsModule, BuyRequestsModule, 
     SchedulersModule, AdminModule, PurchaseOrderDocFilesModule, 
-    PurchaseOrderDocFilesModule, NotificationsModule, DisputesModule
+    PurchaseOrderDocFilesModule, NotificationsModule, DisputesModule, RatingsModule
   ],
   controllers: [AppController],
   providers: [AppService],

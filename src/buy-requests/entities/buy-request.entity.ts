@@ -14,6 +14,7 @@ import { User } from 'src/users/entities/user.entity';
 import { Product, ProductQuantityUnit } from 'src/products/entities/product.entity';
 import { PurchaseOrderDocFile } from 'src/purchase-order-doc-files/entities/purchase-order-doc-file.entity';
 import { Dispute } from 'src/disputes/entities/dispute.entity';
+import { Rating } from 'src/ratings/entities/rating.entity';
 
 export enum BuyRequestStatus {
   PENDING = 'pending',
@@ -106,6 +107,8 @@ export class BuyRequest {
   @OneToMany(() => Dispute, (d) => d.buyRequest)
   disputes: Dispute[];
 
+  @OneToMany(() => Rating, (rating) => rating.buyRequest)
+  ratings: Rating[];
 
   @Column({ type: 'timestamptz', nullable: true })
   completedAt: Date | null;

@@ -9,6 +9,7 @@ import { Notification } from 'src/notifications/entities/notification.entity';
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToMany, JoinTable, OneToMany } from 'typeorm';
 import { BuyRequest } from 'src/buy-requests/entities/buy-request.entity';
 import { Dispute } from 'src/disputes/entities/dispute.entity';
+import { Rating } from 'src/ratings/entities/rating.entity';
 
 export enum UserRole {
   FARMER = 'farmer',
@@ -228,15 +229,26 @@ export class User {
   files: File[];
 
   // Relation: User(Buyer) ↔ BuyRequests (one-to-many)
+  @Exclude()
   @OneToMany(() => BuyRequest, (buyRequest) => buyRequest.buyer)
   buyRequestsAsBuyer: BuyRequest[];
 
   // Relation: User(Seller) ↔ BuyRequests (one-to-many)
+  @Exclude()
   @OneToMany(() => BuyRequest, (buyRequest) => buyRequest.seller)
   buyRequestsAsSeller: BuyRequest[];
 
   // Relation: User can initiate many disputes
+  @Exclude()
   @OneToMany(() => Dispute, (dispute) => dispute.initiatedBy)
   disputes: Dispute[];
+
+  @Exclude()
+  @OneToMany(() => Rating, (rating) => rating.rater)
+  givenRatings: Rating[];
+
+  @Exclude()
+  @OneToMany(() => Rating, (rating) => rating.ratee)
+  receivedRatings: Rating[];
 
 }

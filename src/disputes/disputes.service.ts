@@ -24,7 +24,7 @@ export class DisputesService {
     async createDispute( dto: CreateDisputeDto, currentUser: User ): Promise<any> {
         try {
             const buyRequest = await this.buyRequestsRepository.findOne({
-                where: { id: dto.buyRequestId },
+                where: { id: dto.buyRequestId, isDeleted: false },
                 relations: ['buyer', 'seller'],
             });
 
@@ -46,6 +46,7 @@ export class DisputesService {
                         DisputeStatus.OPEN,
                         DisputeStatus.UNDER_REVIEW,
                     ]),
+                    isDeleted: false,
                 },
             });
 

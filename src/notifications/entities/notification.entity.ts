@@ -8,6 +8,7 @@ export enum NotificationType {
   Contact_Message = 'contact_message',
   Dispute = 'dispute',
   System = 'system',
+  Rating = 'rating'
 }
 
 export enum RelatedEntityType {
