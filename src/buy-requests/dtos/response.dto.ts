@@ -17,6 +17,14 @@ export class BuyRequestPaginationData {
     pageSize: number;
 }
 
+export class GetAllBuyRequestsResponseDto extends ApiResponseDto<BuyRequestPaginationData> {
+    @ApiProperty({ example: 'Buyrequests fetched successfully' })
+    declare message: string;
+
+    @ApiProperty({ type: () => BuyRequestPaginationData })
+    declare data: BuyRequestPaginationData;
+}
+
 export class DirectBuyRequestResponseData {
     @ApiProperty({ example: "l89vuh-uhohou-gfyrf-5tgygv" })
     id: string;

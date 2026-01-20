@@ -16,18 +16,28 @@ import {
     BuyRequestUpdateResponseDto, BuyRequestUpdateStatusResponseDto,
     BuyRequestFindResponseDto, BuyRequestFindByUserIdResponseDto,
     BuyRequestUpdateOrderStateResponseDto,BuyRequestOngoingOrderListResponseDto,
-    PurchaseOrderDeleteResponseDto, DirectBuyRequestResponseDto
+    PurchaseOrderDeleteResponseDto, DirectBuyRequestResponseDto,
+    GetAllBuyRequestsResponseDto
 } from './dtos/response.dto';
 import { UpdateOrderStateDto } from './dtos/update-order-state.dto';
 import { OngoingBuyRequestOrdersQueryDto } from './dtos/ongoing-buy-request-orders-query.dto';
 import { UpdatePurchaseOrderDocDto } from './dtos/update-purchase-order-doc.dto';
 import { DirectBuyRequestDto } from './dtos/direct-buy-request.dto';
+import { GetAllBuyRequestsQueryDto } from './dtos/get-all-buy-requests.query.dto';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('buy-requests')
 export class BuyRequestsController {
     constructor(private readonly buyRequestsService: BuyRequestsService) {}
+
+    @Get()
+    @ApiOperation({ summary: 'Get all buy requests (paginated)', description: 'Accessible to all authenticated users',})
+    @ApiResponse({ status: 200, description: 'Buy requests fetched successfully', type: GetAllBuyRequestsResponseDto  })
+    @HttpCode(HttpStatus.OK)
+    async getAllBuyRequests( @Query() query: GetAllBuyRequestsQueryDto, ) {
+        return this.buyRequestsService.getAllBuyRequests(query);
+    }
 
     // 🔹 Create a new buy request (processors only)
     @ApiOperation({ summary: 'Create a new buy request (processors only)' })

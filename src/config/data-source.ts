@@ -28,7 +28,8 @@ export const AppDataSource = new DataSource({
   synchronize: false,
   entities: [
     User, Crop, File, Certification, QualityStandard, 
-    Product, FarmerProductPhotoFile, Event, BuyRequest, PurchaseOrderDocFile, Notification, Dispute, Rating
+    Product, FarmerProductPhotoFile, Event, BuyRequest, 
+    PurchaseOrderDocFile, Notification, Dispute, Rating
   ], // ✅ Explicit entities for CLI
   migrationsTableName: 'migrations',
   migrations: [__dirname + '/../migrations/**/*.{ts,js}'],

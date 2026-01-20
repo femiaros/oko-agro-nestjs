@@ -20,6 +20,7 @@ import { UpdatePurchaseOrderDocDto } from './dtos/update-purchase-order-doc.dto'
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { NotificationType, RelatedEntityType } from 'src/notifications/entities/notification.entity';
 import { DirectBuyRequestDto } from './dtos/direct-buy-request.dto';
+import { GetAllBuyRequestsQueryDto } from './dtos/get-all-buy-requests.query.dto';
 
 @Injectable()
 export class BuyRequestsService {
@@ -412,7 +413,6 @@ export class BuyRequestsService {
                 buyRequest.paymentConfirmed = true;
                 buyRequest.paymentConfirmedAt = new Date();
 
-
                 // Notification to Buyer
                 await this.notificationsService.createNotification({
                     user: buyRequest.buyer,
@@ -452,6 +452,48 @@ export class BuyRequestsService {
             };
         } catch (error) {
             handleServiceError(error, 'An error occurred while updating order state');
+        }
+    }
+
+    async getAllBuyRequests( query: GetAllBuyRequestsQueryDto, ): Promise<any> {
+        try {
+            const pageNumber = query.pageNumber ? Number(query.pageNumber) : 1;
+            const pageSize = query.pageSize ? Number(query.pageSize) : 20;
+            const skip = (pageNumber - 1) * pageSize;
+
+            const qb = this.buyRequestsRepository
+                .createQueryBuilder('buyRequest')
+                .leftJoinAndSelect('buyRequest.buyer', 'buyer')
+                .leftJoinAndSelect('buyRequest.seller', 'seller')
+                .leftJoinAndSelect('buyRequest.product', 'product')
+                .where('buyRequest.isDeleted = FALSE')
+                .orderBy('buyRequest.createdAt', 'DESC');
+
+            // 🔹 Filter: General buy requests
+            if (query.isGeneral !== undefined) {
+                qb.andWhere('buyRequest.isGeneral = :isGeneral', {
+                    isGeneral: query.isGeneral,
+                });
+            }
+
+            const [items, totalRecord] = await qb
+                .skip(skip)
+                .take(pageSize)
+                .getManyAndCount();
+
+            return {
+                statusCode: 200,
+                message: 'Buyrequests fetched successfully',
+                data: {
+                    items: instanceToPlain(items),
+                    totalRecord,
+                    pageNumber,
+                    pageSize,
+                },
+            };
+        } catch (error) {
+            // this.logger.error( 'Error while fetching buy requests',error.stack,);
+            handleServiceError( error, 'An error occurred while fetching buy requests', );
         }
     }
 
