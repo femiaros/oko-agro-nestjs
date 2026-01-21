@@ -619,7 +619,9 @@ export class BuyRequestsService {
                 .createQueryBuilder('buyRequest')
                 .leftJoinAndSelect('buyRequest.buyer', 'buyer')
                 .leftJoinAndSelect('buyRequest.seller', 'seller')
-                .leftJoinAndSelect('buyRequest.cropType', 'crop')
+                // .leftJoinAndSelect('buyRequest.cropType', 'cropType')
+                .leftJoinAndSelect('buyRequest.product', 'product')
+                .leftJoinAndSelect('buyRequest.purchaseOrderDoc', 'purchaseOrderDoc')
                 .where('buyRequest.isDeleted = false')
                 .andWhere('buyRequest.orderState = :state', { state });
 
