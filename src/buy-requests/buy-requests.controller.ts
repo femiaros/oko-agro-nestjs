@@ -142,7 +142,7 @@ export class BuyRequestsController {
     @ApiOperation({ summary: `Fetch a user's list buyRequests with :userId` })
     @ApiResponse({ status: 200, description: "Successfully fetched user's buyRequests", type: BuyRequestFindByUserIdResponseDto })
     @Get('user/:userId')
-    @Roles(UserRole.PROCESSOR, UserRole.FARMER)
+    @Roles(UserRole.PROCESSOR, UserRole.FARMER, UserRole.ADMIN, UserRole.SUPER_ADMIN)
     @UseGuards(RolesGuard)
     @HttpCode(HttpStatus.OK)
     async findUserBuyRequests(@Param('userId') userId: string) {
