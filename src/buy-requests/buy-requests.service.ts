@@ -463,9 +463,11 @@ export class BuyRequestsService {
 
             const qb = this.buyRequestsRepository
                 .createQueryBuilder('buyRequest')
+                .leftJoinAndSelect('buyRequest.cropType', 'cropType')
                 .leftJoinAndSelect('buyRequest.buyer', 'buyer')
                 .leftJoinAndSelect('buyRequest.seller', 'seller')
                 .leftJoinAndSelect('buyRequest.product', 'product')
+                .leftJoinAndSelect('buyRequest.ratings', 'ratings')
                 .where('buyRequest.isDeleted = FALSE')
                 .orderBy('buyRequest.createdAt', 'DESC');
 
@@ -474,6 +476,19 @@ export class BuyRequestsService {
                 qb.andWhere('buyRequest.isGeneral = :isGeneral', {
                     isGeneral: query.isGeneral,
                 });
+            }
+
+            // 🔹 Search: crop name OR delivery location
+            if (query.search) {
+                qb.andWhere(
+                    `
+                    cropType.name ILIKE :search
+                    OR buyRequest.deliveryLocation ILIKE :search
+                    `,
+                    {
+                        search: `%${query.search}%`,
+                    },
+                );
             }
 
             const [items, totalRecord] = await qb
@@ -569,6 +584,7 @@ export class BuyRequestsService {
                 .leftJoinAndSelect('buyRequest.seller', 'seller')
                 .leftJoinAndSelect('buyRequest.product', 'product')
                 .leftJoinAndSelect('buyRequest.purchaseOrderDoc', 'purchaseOrderDoc')
+                .leftJoinAndSelect('buyRequest.ratings', 'ratings')
                 .where('buyRequest.isDeleted = false');
 
             if (status) {
@@ -622,6 +638,7 @@ export class BuyRequestsService {
                 // .leftJoinAndSelect('buyRequest.cropType', 'cropType')
                 .leftJoinAndSelect('buyRequest.product', 'product')
                 .leftJoinAndSelect('buyRequest.purchaseOrderDoc', 'purchaseOrderDoc')
+                .leftJoinAndSelect('buyRequest.ratings', 'ratings')
                 .where('buyRequest.isDeleted = false')
                 .andWhere('buyRequest.orderState = :state', { state });
 
@@ -677,7 +694,7 @@ export class BuyRequestsService {
                     id: buyRequestId,
                     isDeleted: false,
                 },
-                relations: ['buyer', 'seller', 'product', 'qualityStandardType', 'purchaseOrderDoc']
+                relations: ['buyer', 'seller', 'product', 'qualityStandardType', 'purchaseOrderDoc', 'ratings']
             });
 
             if (!buyRequest) {
@@ -708,6 +725,7 @@ export class BuyRequestsService {
                 .leftJoinAndSelect('buyRequest.seller', 'seller')
                 .leftJoinAndSelect('buyRequest.product', 'product')
                 .leftJoinAndSelect('buyRequest.purchaseOrderDoc', 'purchaseOrderDoc')
+                .leftJoinAndSelect('buyRequest.ratings', 'ratings')
                 .where('buyRequest.isDeleted = false');
 
             if (user.role === UserRole.FARMER) {

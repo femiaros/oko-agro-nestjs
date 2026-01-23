@@ -8,6 +8,7 @@ import { GetNotificationsQueryDto } from './dtos/get-notifications-query.dto';
 import { handleServiceError } from 'src/common/utils/error-handler.util';
 import { ContactBuyerDto } from './dtos/contact-buyer.dto';
 import { BuyRequest } from 'src/buy-requests/entities/buy-request.entity';
+import { instanceToPlain } from 'class-transformer';
 
 @Injectable()
 export class NotificationsService {
@@ -34,17 +35,17 @@ export class NotificationsService {
 
         const notification = this.notificationsRepository.create(
             {
-            user: payload.user ?? null,
-            audience,
-            type: payload.type,
-            title: payload.title,
-            message: payload.message,
-            relatedEntityType: payload.relatedEntityType,
-            relatedEntityId: payload.relatedEntityId,
-            senderId: payload.senderId ?? null,
-            senderName: payload.senderName ?? null,
-            isRead: false,
-            isDeleted: false,
+                user: payload.user ?? null,
+                audience,
+                type: payload.type,
+                title: payload.title,
+                message: payload.message,
+                relatedEntityType: payload.relatedEntityType,
+                relatedEntityId: payload.relatedEntityId,
+                senderId: payload.senderId ?? null,
+                senderName: payload.senderName ?? null,
+                isRead: false,
+                isDeleted: false,
             } as Partial<Notification>,
         );
 
@@ -54,42 +55,43 @@ export class NotificationsService {
     async getNotifications( user: User, query: GetNotificationsQueryDto ) {
         try {
             const { pageNumber, pageSize, type, isRead } = query;
-
             const skip = (pageNumber - 1) * pageSize;
 
-            const where: any = {
-                user: { id: user.id },
-                isDeleted: false,
-            };
+            const qb = this.notificationsRepository
+                .createQueryBuilder('notification')
+                .leftJoinAndSelect('notification.user', 'user')
+                .where('notification.isDeleted = FALSE')
+                .andWhere('notification.userId = :userId', { userId: user.id })
+                .orderBy('notification.createdAt', 'DESC');
 
             if (type) {
-                where.type = type;
+                qb.andWhere('notification.type = :type', { type });
             }
 
             if (isRead !== undefined) {
-                where.isRead = isRead;
+                qb.andWhere('notification.isRead = :isRead', { isRead });
             }
 
-            const [items, totalRecord] =
-                await this.notificationsRepository.findAndCount({
-                    where,
-                    order: { createdAt: 'DESC' },
-                    skip,
-                    take: pageSize,
-                    select: [
-                        'id',
-                        'type',
-                        'title',
-                        'message',
-                        // 'relatedEntityType',
-                        // 'relatedEntityId',
-                        'senderId',
-                        'senderName',
-                        'isRead',
-                        'createdAt',
-                        'updatedAt',
-                    ],
-                });
+            qb.select([
+                'notification.id',
+                'notification.type',
+                'notification.title',
+                'notification.message',
+                'notification.senderId',
+                'notification.senderName',
+                'notification.isRead',
+                'notification.createdAt',
+                'notification.updatedAt',
+                'user.id',
+                'user.firstName',
+                'user.lastName',
+                'user.email',
+            ]);
+
+            const [items, totalRecord] = await qb
+                .skip(skip)
+                .take(pageSize)
+                .getManyAndCount();
 
             const unreadCount = await this.notificationsRepository.count({
                 where: {
@@ -124,17 +126,26 @@ export class NotificationsService {
                     user: { id: user.id },
                     isDeleted: false,
                 },
-                select: [
-                    'id',
-                    'type',
-                    'title',
-                    'message',
-                    'senderId',
-                    'senderName',
-                    'isRead',
-                    'createdAt',
-                    'updatedAt',
-                ],
+                relations: {
+                    user: true,
+                },
+                select: {
+                    id: true,
+                    type: true,
+                    title: true,
+                    message: true,
+                    senderId: true,
+                    senderName: true,
+                    isRead: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    user: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                    },
+                },
             });
 
             if (!notification) {
@@ -144,7 +155,7 @@ export class NotificationsService {
             return {
                 statusCode: 200,
                 message: 'Notification retrieved successfully',
-                data: notification,
+                data: instanceToPlain(notification),
             };
         } catch (error) {
             this.logger.error( `Failed to fetch notification ${notificationId} for user ${user.id}`, error.stack);

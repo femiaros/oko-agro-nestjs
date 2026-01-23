@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import { IsBoolean, IsNumberString, IsOptional } from "class-validator";
+import { IsBoolean, IsNumberString, IsOptional, IsString } from "class-validator";
 
 export class GetAllBuyRequestsQueryDto {
     @ApiPropertyOptional({
@@ -12,6 +12,14 @@ export class GetAllBuyRequestsQueryDto {
     @Transform(({ value }) => value === 'true')
     @IsBoolean()
     isGeneral?: boolean = true;
+
+    @ApiPropertyOptional({
+        description: 'Search by crop name or delivery location',
+        example: 'Rice Lagos',
+    })
+    @IsOptional()
+    @IsString()
+    search?: string;
 
     @ApiPropertyOptional({
         description: 'Page number',

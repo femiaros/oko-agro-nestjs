@@ -1,6 +1,20 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { ApiResponseDto } from "src/common/dto/api-response.dto";
 
+export class NotificationUserDto {
+    @ApiProperty({ example: 'uxuui-67uhdjd-uhdjikd-772829' })
+    id: string;
+
+    @ApiProperty({ example: 'John' })
+    firstName: string;
+
+    @ApiProperty({ example: 'Doe' })
+    lastName: string;
+
+    @ApiProperty({ example: 'john.doe@email.com' })
+    email: string;
+}
+
 export class NotificationData {
     @ApiProperty({ example: 'uxuui-67uhdjd-uhdjikd-772829' })
     id: string;
@@ -28,6 +42,13 @@ export class NotificationData {
 
     @ApiProperty({ example: '2025-01-01T10:00:00.000Z' })
     updatedAt: string;
+
+    @ApiProperty({
+        type: () => NotificationUserDto,
+        nullable: true, 
+        description: 'User this notification belongs to (null for ADMIN/SYSTEM notifications)',
+    })
+    user: NotificationUserDto | null;
 }
 
 export class NotificationPaginationData {
