@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { handleServiceError } from 'src/common/utils/error-handler.util';
+import { detectMimeTypeFromBase64, isValidBase64SizeGeneric, SUPPORTED_MIME_TYPES } from 'src/common/utils/base64.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
 import { instanceToPlain } from 'class-transformer';
@@ -178,19 +179,26 @@ export class AuthService {
                 throw new ForbiddenException('Admin accounts cannot be created using this endpoint.');
             }
 
-            // Validate images
-            const validateImage = (file: string, field: string) => {
-                if (!this.isValidImageType(file))
-                    throw new BadRequestException(`${field}: Only jpeg/png images are allowed`);
+            // Validate File
+            const validateFile = (file: string, field: string) => {
+                const detected = detectMimeTypeFromBase64(file);
 
-                if (!this.isValidatePhotoSize(file))
-                    throw new BadRequestException(`${field}: Image size must be 2MB or less`);
+                // Validate File Type
+                if (!detected || !SUPPORTED_MIME_TYPES.includes(detected)) {
+                    throw new BadRequestException( `${field}: Only jpeg/png/pdf formats are allowed.` );
+                }
+
+                // Validate size: 2MB
+                const docSize = 2 * 1024 * 1024;
+                if (!isValidBase64SizeGeneric(file, docSize)) {
+                    throw new BadRequestException(`${field}: file size must be 2MB or less`);
+                }
             };
 
-            if (userPhoto) validateImage(userPhoto, 'userPhoto');
-            if (farmPhoto) validateImage(farmPhoto, 'farmPhoto');
-            if (businessRegCertDoc) validateImage(businessRegCertDoc, 'businessRegCertDoc');
-            if (taxIdCertDoc) validateImage(taxIdCertDoc, 'taxIdCertDoc');
+            if (userPhoto) validateFile(userPhoto, 'userPhoto');
+            if (farmPhoto) validateFile(farmPhoto, 'farmPhoto');
+            if (businessRegCertDoc) validateFile(businessRegCertDoc, 'businessRegCertDoc');
+            if (taxIdCertDoc) validateFile(taxIdCertDoc, 'taxIdCertDoc');
 
             // CHECK IF USER EXISTS
             const existingUser = await this.usersRepository.findOne({

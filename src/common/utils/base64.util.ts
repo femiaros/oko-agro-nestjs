@@ -148,3 +148,9 @@ export function detectMimeTypeFromBase64(base64: string): string | null {
         return null;
     }
 }
+
+export const SUPPORTED_MIME_TYPES: ReadonlyArray<string> = [
+    'image/jpeg',
+    'image/png',
+    'application/pdf',
+];

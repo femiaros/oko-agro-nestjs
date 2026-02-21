@@ -14,7 +14,7 @@ import { UpdateBuyRequestStatusDto } from './dtos/update-buy-request-status.dto'
 import { UpdateBuyRequestDto } from './dtos/update-buy-request.dto';
 import { UpdateOrderStateDto } from './dtos/update-order-state.dto';
 import { OngoingBuyRequestOrdersQueryDto } from './dtos/ongoing-buy-request-orders-query.dto';
-import { detectMimeTypeFromBase64, isValidBase64Size, isValidBase64SizeGeneric, isValidImageType } from 'src/common/utils/base64.util';
+import { detectMimeTypeFromBase64, isValidBase64SizeGeneric, SUPPORTED_MIME_TYPES } from 'src/common/utils/base64.util';
 import { PurchaseOrderDocFilesService } from 'src/purchase-order-doc-files/purchase-order-doc-files.service';
 import { UpdatePurchaseOrderDocDto } from './dtos/update-purchase-order-doc.dto';
 import { NotificationsService } from 'src/notifications/notifications.service';
@@ -61,7 +61,7 @@ export class BuyRequestsService {
             if (purchaseOrderDoc){
                 const detected = detectMimeTypeFromBase64(purchaseOrderDoc);
 
-                if (!detected || !this.supported.includes(detected)) {
+                if (!detected || !SUPPORTED_MIME_TYPES.includes(detected)) {
                     throw new BadRequestException( 'PurchaseOrderDoc must be JPEG, PNG, or PDF format.' );
                 }
 
@@ -839,7 +839,7 @@ export class BuyRequestsService {
         try {
             const detected = detectMimeTypeFromBase64(dto.purchaseOrderDoc);
 
-            if (!detected || !this.supported.includes(detected)) {
+            if (!detected || !SUPPORTED_MIME_TYPES.includes(detected)) {
                 throw new BadRequestException( 'PurchaseOrderDoc must be JPEG, PNG, or PDF format.' );
             }
 
@@ -922,9 +922,4 @@ export class BuyRequestsService {
         return Number(last[0].requestNumber) + 1;
     }
 
-    private supported = [
-        'image/jpeg',
-        'image/png',
-        'application/pdf',
-    ];
 }
