@@ -13,11 +13,12 @@ import { User } from 'src/users/entities/user.entity';
 import { FarmerProductPhotoFile } from 'src/farmer-product-photo-files/entities/farmer-product-photo-file.entity';
 import { Event } from 'src/events/entities/event.entity';
 import { BuyRequest } from 'src/buy-requests/entities/buy-request.entity';
+import { ProductInventory } from 'src/product-inventories/entities/product-inventory.entity';
 
-export enum ProductQuantityUnit {
-  KILOGRAM = 'kilogram',
-  TONNE = 'tonne',
-}
+// export enum ProductQuantityUnit {
+//   KILOGRAM = 'kilogram',
+//   TONNE = 'tonne',
+// }
 
 export enum ProductPriceCurrency {
   NGN = 'ngn'
@@ -40,14 +41,24 @@ export class Product {
   @ManyToOne(() => Crop, (crop) => crop.products, { eager: false })
   cropType: Crop;
 
-  @Column({ type: 'varchar' })
-  quantity: string;
+  /**
+   * Total quantity available (in KG)
+   * Stored as DECIMAL(30,2) for very large precision-safe values
+   */
+  @Column({ type: 'decimal', precision: 30, scale: 2, default: 0 })
+  quantityKg: string;
 
-  @Column({ type: 'enum', enum: ProductQuantityUnit })
-  quantityUnit: ProductQuantityUnit;
+  /**
+   * Reserved quantity (ACCEPTED but not COMPLETED)
+   */
+  @Column({ type: 'decimal', precision: 30, scale: 2, default: 0 })
+  reservedQuantityKg: string;
 
-  @Column({ type: 'varchar' })
-  pricePerUnit: string;
+  /**
+   * Price per KG (2 decimal fixed)
+   */
+  @Column({ type: 'decimal', precision: 30, scale: 2 })
+  pricePerKg: string;
 
   @Column({ type: 'enum', enum: ProductPriceCurrency, default: ProductPriceCurrency.NGN })
   priceCurrency: ProductPriceCurrency;
@@ -69,6 +80,12 @@ export class Product {
 
   @OneToMany(() => BuyRequest, (buyRequest) => buyRequest.product)
   buyRequests: BuyRequest[];
+
+  /**
+   * Inventory movement history
+   */
+  @OneToMany(() => ProductInventory, (inventory) => inventory.product)
+  inventories: ProductInventory[];
 
   @Column({ type: 'boolean', default: false })
   isDeleted: boolean;

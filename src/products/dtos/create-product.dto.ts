@@ -1,5 +1,5 @@
 import { IsArray, IsDateString, IsEnum, IsNotEmpty, IsNumberString, IsOptional, IsString, ArrayMinSize, ArrayMaxSize, MinDate } from 'class-validator';
-import { ProductPriceCurrency, ProductQuantityUnit } from '../entities/product.entity';
+import { ProductPriceCurrency } from '../entities/product.entity';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -17,16 +17,12 @@ export class CreateProductDto {
   @ApiProperty({ example: '1000', description: 'Quantity of product requested (optional)' })
   @IsNumberString()
   @IsNotEmpty({message: 'quantity is required'})
-  quantity: string;
-
-  @ApiProperty({ enum: ProductQuantityUnit, example: ProductQuantityUnit.KILOGRAM, description: 'Quantity unit (optional)'})
-  @IsEnum(ProductQuantityUnit)
-  quantityUnit: ProductQuantityUnit;
+  quantityKg: string;
 
   @ApiProperty({ example: '500', description: 'Price per unit offer (e.g. per kg) (optional)' })
   @IsNumberString()
-  @IsNotEmpty({message: 'pricePerUnit is required'})
-  pricePerUnit: string;
+  @IsNotEmpty({message: 'pricePerKg is required'})
+  pricePerKg: string;
 
   @ApiProperty({ enum: ProductPriceCurrency, example: ProductPriceCurrency.NGN, description: 'Price Currency (optional)' })
   @IsEnum(ProductPriceCurrency)

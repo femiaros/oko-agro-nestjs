@@ -72,8 +72,8 @@ export class BuyRequestsController {
         return this.buyRequestsService.updateStatus(dto, currentUser);
     }
 
-    // 🔹 Update order state (processors and admins only)
-    @ApiOperation({ summary: 'Update order state of a BuyRequest (Admin & Buyer only)' })
+    // 🔹 Update order state
+    @ApiOperation({ summary: 'Update order state of a BuyRequest' })
     @ApiResponse({ status: 200, description: 'Successfully updated buy request order state', type: BuyRequestUpdateOrderStateResponseDto })
     @Put('update-order-state')
     // @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.PROCESSOR)

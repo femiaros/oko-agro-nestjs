@@ -1,6 +1,6 @@
 import { IsDateString, IsEnum, IsNotEmpty, IsNumberString, IsOptional, IsString, IsUUID } from "class-validator";
-import { ProductQuantityUnit } from "src/products/entities/product.entity";
-import { BuyRequestQuantityUnit, PaymentMethod } from "../entities/buy-request.entity";
+// import { ProductQuantityUnit } from "src/products/entities/product.entity";
+import { PaymentMethod } from "../entities/buy-request.entity";
 import { ApiProperty } from "@nestjs/swagger";
 
 export class UpdateBuyRequestDto {
@@ -22,17 +22,12 @@ export class UpdateBuyRequestDto {
     @ApiProperty({ example: '1000', description: 'Quantity of product requested (optional)', required: false })
     @IsNumberString()
     @IsOptional()
-    productQuantity?: string;
-
-    @ApiProperty({ enum: BuyRequestQuantityUnit, example: BuyRequestQuantityUnit.KILOGRAM, description: 'Quantity unit (optional)', required: false })
-    @IsEnum(BuyRequestQuantityUnit)
-    @IsOptional()
-    productQuantityUnit?: BuyRequestQuantityUnit;
+    productQuantityKg?: string;
 
     @ApiProperty({ example: '500', description: 'Price per unit offer (e.g. per kg) (optional)', required: false })
     @IsNumberString()
     @IsOptional()
-    pricePerUnitOffer?: string;
+    pricePerKgOffer?: string;
 
     @ApiProperty({ example: '2025-10-01', description: 'Estimated delivery date (YYYY-MM-DD) (optional)', required: false })
     @IsDateString()

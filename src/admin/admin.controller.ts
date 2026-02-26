@@ -14,12 +14,17 @@ import { UpdateUserStatusDto } from './dtos/update-user-status.dto';
 import { UpdateAdminPasswordDto } from './dtos/update-admin-password.dto';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { GetAllAdminsQueryDto } from './dtos/get-all-admins-query.dto';
+import { ProductInventoriesService } from 'src/product-inventories/product-inventories.service';
+import { GetInventoriesQueryDto } from 'src/product-inventories/dtos/get-inventories-query.dto';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('admin')
 export class AdminController {
-    constructor(private readonly adminService: AdminService) {}
+    constructor(
+        private readonly adminService: AdminService,
+        private readonly productInventoriesService: ProductInventoriesService
+    ) {}
 
     @Get('dashboard/overview')
     @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
@@ -54,6 +59,40 @@ export class AdminController {
     async updateAdminPassword(@CurrentUser() currentUser: User, @Body() dto: UpdateAdminPasswordDto
     ) {
         return this.adminService.updateAdminPassword(dto, currentUser);
+    }
+
+    @ApiOperation({ 
+        summary: 'Inventories fetched successfully with pagination metadata.',
+        description: `
+            Retrieves a paginated list of product inventory logs.
+
+            This endpoint allows administrators to:
+
+            • Search inventory logs by product name or crop type name  
+            • Filter logs by inventory type (addition, reservation, release, deduction)  
+            • Paginate results using pageNumber and pageSize  
+
+            Results are ordered by most recent inventory activity first.
+            `,
+    })
+    @ApiResponse({ status: 200, description: 'Inventories fetched successfully with pagination metadata.'})
+    @Get('inventories')
+    @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+    @UseGuards(RolesGuard)
+    @HttpCode(HttpStatus.OK)
+    async getInventories(@Query() query: GetInventoriesQueryDto
+    ) {
+        return this.productInventoriesService.getInventories(query);
+    }
+
+    @ApiOperation({ summary: 'Get all inventory logs of a product' })
+    @ApiResponse({ status: 200, description: "Product inventory logs fetched successfully" })
+    @Get('inventories/product/:id')
+    @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.FARMER)
+    @UseGuards(RolesGuard)
+    @HttpCode(HttpStatus.OK)
+    async getProductInventories(@Param('id') id: string) {
+        return this.productInventoriesService.getProductInventories(id);
     }
 
     @Get('all-admins')

@@ -24,58 +24,79 @@ export enum NotificationAudience {
   SYSTEM = 'system',    // visible to all users
 }
 
+export enum NotificationChannel {
+  APP = 'app',
+  SMS = 'sms',
+  EMAIL = 'email',
+}
 
 @Entity('notifications')
 @Index(['user', 'isRead'])
 @Index(['user', 'createdAt'])
 @Index(['audience', 'createdAt'])
 export class Notification {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @ManyToOne(() => User, (user) => user.notifications, {
-      nullable: true,
-      onDelete: 'CASCADE',
-    })
-    user: User | null;
+  @ManyToOne(() => User, (user) => user.notifications, {
+    nullable: true,
+    onDelete: 'CASCADE',
+  })
+  user: User | null;
 
-    @Column({
-      type: 'enum',
-      enum: NotificationAudience,
-      default: NotificationAudience.USER,
-    })
-    audience: NotificationAudience;
+  @Column({
+    type: 'enum',
+    enum: NotificationAudience,
+    default: NotificationAudience.USER,
+  })
+  audience: NotificationAudience;
 
-    @Column({ type: 'enum', enum: NotificationType })
-    type: NotificationType;
+  @Column({ type: 'enum', enum: NotificationType })
+  type: NotificationType;
 
-    @Column({ length: 255 })
-    title: string;
+  @Column({ length: 255 })
+  title: string;
 
-    @Column({ type: 'text' })
-    message: string;
+  @Column({ type: 'text' })
+  message: string;
 
-    @Column({ type: 'enum', enum: RelatedEntityType })
-    relatedEntityType: RelatedEntityType;
+  @Column({ type: 'enum', enum: RelatedEntityType })
+  relatedEntityType: RelatedEntityType;
 
-    @Column({ type: 'uuid', nullable: true })
-    relatedEntityId: string | null;
+  @Column({ type: 'uuid', nullable: true })
+  relatedEntityId: string | null;
 
-    @Column({ type: 'uuid', nullable: true })
-    senderId: string | null;
+  @Column({ type: 'uuid', nullable: true })
+  senderId: string | null;
 
-    @Column({ type: 'varchar', length: 255, nullable: true })
-    senderName: string | null;
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  senderName: string | null;
 
-    @Column({ default: false })
-    isRead: boolean;
+  @Column({ default: false })
+  isRead: boolean;
 
-    @Column({ default: false })
-    isDeleted: boolean;
+  @Column({
+    type: 'enum',
+    enum: NotificationChannel,
+    default: NotificationChannel.APP,
+  })
+  channel: NotificationChannel;
 
-    @CreateDateColumn()
-    createdAt: Date;
+  @Column({ default: false })
+  sent: boolean;
 
-    @UpdateDateColumn()
-    updatedAt: Date;
+  @Column({ type: 'text', nullable: true })
+  failureReason: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  externalMessageId: string | null; // Twilio SID
+
+  @Column({ default: false })
+  isDeleted: boolean;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

@@ -1,5 +1,5 @@
 import { User } from "src/users/entities/user.entity";
-import { Entity, PrimaryGeneratedColumn, Column, ManyToMany } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, CreateDateColumn, UpdateDateColumn } from "typeorm";
 
 @Entity('certifications')
 export class Certification {
@@ -11,4 +11,10 @@ export class Certification {
 
     @ManyToMany(() => User, (user) => user.certifications)
     users: User[];
+
+    @CreateDateColumn()
+    createdAt: Date;
+    
+    @UpdateDateColumn()
+    updatedAt: Date;
 }

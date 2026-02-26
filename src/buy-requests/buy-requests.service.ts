@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, MoreThan, Repository } from 'typeorm';
+import { DataSource, In, MoreThan, Repository } from 'typeorm';
 import { BuyRequest, BuyRequestStatus, OrderState } from './entities/buy-request.entity';
 import { Crop } from 'src/crops/entities/crop.entity';
 import { QualityStandard } from 'src/quality-standards/entities/quality-standard.entity';
@@ -21,6 +21,8 @@ import { NotificationsService } from 'src/notifications/notifications.service';
 import { NotificationType, RelatedEntityType } from 'src/notifications/entities/notification.entity';
 import { DirectBuyRequestDto } from './dtos/direct-buy-request.dto';
 import { GetAllBuyRequestsQueryDto } from './dtos/get-all-buy-requests.query.dto';
+import { ProductInventoriesService } from 'src/product-inventories/product-inventories.service';
+import Decimal from 'decimal.js';
 
 @Injectable()
 export class BuyRequestsService {
@@ -32,6 +34,8 @@ export class BuyRequestsService {
         private readonly usersService: UsersService,
         private readonly fileService: PurchaseOrderDocFilesService,
         private readonly notificationsService: NotificationsService,
+        private readonly productInventoriesService: ProductInventoriesService,  
+        private readonly dataSource: DataSource,
     ) {}
 
     
@@ -51,12 +55,6 @@ export class BuyRequestsService {
 
             // Allowed docsize - 2mb
             const docSize = 2 * 1024 * 1024;
-            // Validate doc strings
-            // if (!isValidImageType(purchaseOrderDoc)) 
-            //     throw new BadRequestException('PurchaseOrderDoc: Only jpeg/png images are allowed');
-
-            // if (!isValidBase64Size(purchaseOrderDoc, docSize))
-            //     throw new BadRequestException('PurchaseOrderDoc: Image size must be 2MB or less');
 
             if (purchaseOrderDoc){
                 const detected = detectMimeTypeFromBase64(purchaseOrderDoc);
@@ -193,9 +191,8 @@ export class BuyRequestsService {
             // Map other editable fields
             const editableFields: (keyof UpdateBuyRequestDto)[] = [
                 'description',
-                'productQuantity',
-                'productQuantityUnit',
-                'pricePerUnitOffer',
+                'productQuantityKg',
+                'pricePerKgOffer',
                 'estimatedDeliveryDate',
                 'deliveryLocation',
                 'preferredPaymentMethod',
@@ -222,7 +219,7 @@ export class BuyRequestsService {
         }
     }
 
-    async updateStatus(dto: UpdateBuyRequestStatusDto, currentUser: User,): Promise<any> {
+    async updateStatus1(dto: UpdateBuyRequestStatusDto, currentUser: User,): Promise<any> {
         try {
             const buyRequest = await this.buyRequestsRepository.findOne({
                 where: { id: dto.buyRequestId, isDeleted: false },
@@ -238,7 +235,7 @@ export class BuyRequestsService {
             if (buyRequest.orderState != null && !editableStates.includes(buyRequest.orderState)) {
                 throw new BadRequestException('BuyRequest cannot be updated');
             }
-
+            
             // Only farmer (seller) can update status
             // if (currentUser.role !== 'farmer')
             // throw new BadRequestException('Only farmers can update requests');
@@ -398,16 +395,19 @@ export class BuyRequestsService {
 
             // ✅ HANDLE ADMIN/SELLER CONFIRM PAYMENT → IN_TRANSIT
             if ((isAdmin || isSeller) && dto.orderState === OrderState.IN_TRANSIT) {
-                // Convert string values to numbers safely
-                const quantity = parseFloat(buyRequest.productQuantity);
-                const pricePerUnit = parseFloat(buyRequest.pricePerUnitOffer);
+                let quantity: Decimal;
+                let pricePerKg: Decimal;
 
-                if (isNaN(quantity) || isNaN(pricePerUnit)) {
-                    throw new BadRequestException('Invalid productQuantity or pricePerUnitOffer format');
+                try {
+                    quantity = new Decimal(buyRequest.productQuantityKg);
+                    pricePerKg = new Decimal(buyRequest.pricePerKgOffer);
+                } catch {
+                    throw new BadRequestException(
+                        'Invalid productQuantityKg or pricePerKgOffer format',
+                    );
                 }
 
-                // Calculate total = quantity × price per unit
-                const totalAmount = (quantity * pricePerUnit).toFixed(2); // 2 decimal places
+                const totalAmount = quantity.mul(pricePerKg).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toFixed(2);
                 
                 buyRequest.paymentAmount = totalAmount.toString(); // store as string
                 buyRequest.paymentConfirmed = true;
@@ -896,8 +896,9 @@ export class BuyRequestsService {
             });
             if (!buyRequest || buyRequest.isDeleted) throw new NotFoundException('BuyRequest not found');
 
-            if (currentUser.id !== buyRequest.buyer.id)
-            throw new ForbiddenException('Not authorized to delete this request');
+            if (currentUser.id !== buyRequest.buyer.id) throw new ForbiddenException('Not authorized to delete this request');
+
+            if (buyRequest.status !== BuyRequestStatus.PENDING) throw new ForbiddenException('BuyRequest cannot be deleted');
 
             buyRequest.isDeleted = true;
             await this.buyRequestsRepository.save(buyRequest);
@@ -908,6 +909,155 @@ export class BuyRequestsService {
             };
         } catch (error) {
             handleServiceError(error, 'An error occurred, while deleting BuyRequest');
+        }
+    }
+
+    // ********************************************************************************************
+    // ********************************************************************************************
+    // ********************************************************************************************
+    // ********************************************************************************************
+
+    async updateStatus( dto: UpdateBuyRequestStatusDto, currentUser: User): Promise<any> {
+        try {
+            return await this.dataSource.transaction(async (manager) => {
+
+                const buyRequestRepo = manager.getRepository(BuyRequest);
+                const productRepo = manager.getRepository(Product);
+
+                const buyRequest = await buyRequestRepo.findOne({
+                    where: { id: dto.buyRequestId, isDeleted: false },
+                    relations: ['buyer', 'seller', 'product'],
+                });
+
+                if (!buyRequest) throw new NotFoundException('BuyRequest not found');
+
+                const editableStates = [OrderState.AWAITING_SHIPPING];
+
+                if ( buyRequest.orderState != null && !editableStates.includes(buyRequest.orderState)){
+                    throw new BadRequestException('BuyRequest cannot be updated');
+                }
+
+                if (buyRequest.isGeneral) {
+                    throw new BadRequestException( 'BuyRequest is general, contact the buyer' );
+                }
+
+                if (!buyRequest.seller || buyRequest.seller.id !== currentUser.id) {
+                    throw new ForbiddenException( 'This farmer is not authorized to update this request' );
+                }
+
+                if (
+                    ![
+                        BuyRequestStatus.ACCEPTED,
+                        BuyRequestStatus.REJECTED,
+                        BuyRequestStatus.CANCELLED,
+                    ].includes(dto.status)
+                ) {
+                    throw new BadRequestException( 'Invalid status update for directed buy request' );
+                }
+
+                /* =========================================
+                ACCEPTED
+                ========================================= */
+
+                if (dto.status === BuyRequestStatus.ACCEPTED) {
+
+                    if (!dto.productId)
+                        throw new BadRequestException(
+                            'BuyRequest must be accepted with a productId',
+                        );
+
+                    const product = await productRepo.findOne({
+                        where: {
+                            id: dto.productId,
+                            owner: { id: currentUser.id },
+                            isDeleted: false,
+                        },
+                    });
+
+                    if (!product)
+                        throw new BadRequestException(
+                            'Invalid productId or product does not belong to this farmer',
+                        );
+
+                    buyRequest.product = product;
+                    buyRequest.status = dto.status;
+                    buyRequest.orderState = OrderState.AWAITING_SHIPPING;
+                    buyRequest.orderStateTime = new Date();
+
+                    await buyRequestRepo.save(buyRequest);
+
+                    // 🔥 RESERVE STOCK
+                    await this.productInventoriesService.reserveStock(
+                        product.id,
+                        buyRequest.productQuantityKg,
+                        buyRequest.id,
+                        manager,
+                    );
+
+                    // Notification
+                    await this.notificationsService.createNotification({
+                        user: buyRequest.buyer,
+                        type: NotificationType.BuyRequest,
+                        title: `Buy Request Accepted: REQ-${buyRequest.requestNumber}`,
+                        message:
+                            `Your buy request REQ-${buyRequest.requestNumber} has been accepted by ${buyRequest.seller.firstName.toLowerCase()}.\n` +
+                            `The order is now awaiting shipping`,
+                        relatedEntityType: RelatedEntityType.BuyRequest,
+                        relatedEntityId: buyRequest.id,
+                    });
+                }
+
+                /* =========================================
+                REJECTED / CANCELLED
+                ========================================= */
+
+                if (
+                    dto.status === BuyRequestStatus.REJECTED ||
+                    dto.status === BuyRequestStatus.CANCELLED
+                ) {
+                    const previousProduct = buyRequest.product;
+                    buyRequest.status = dto.status;
+                    buyRequest.product = null;
+                    buyRequest.orderState = null;
+                    buyRequest.orderStateTime = null;
+
+                    await buyRequestRepo.save(buyRequest);
+
+                    if (previousProduct) {
+                        await this.productInventoriesService.releaseStock(
+                            previousProduct.id,
+                            buyRequest.productQuantityKg,
+                            buyRequest.id,
+                            manager,
+                        );
+                    }
+
+                    const title = `Buy Request ${dto.status.toLowerCase()}: REQ-${buyRequest.requestNumber}`;
+                    const message =
+                        `Your buy request REQ-${buyRequest.requestNumber} has been ${dto.status.toLowerCase()} by ${buyRequest.seller.firstName.toLowerCase()}.`;
+
+                    await this.notificationsService.createNotification({
+                        user: buyRequest.buyer,
+                        type: NotificationType.BuyRequest,
+                        title,
+                        message,
+                        relatedEntityType: RelatedEntityType.BuyRequest,
+                        relatedEntityId: buyRequest.id,
+                    });
+                }
+
+                return {
+                    statusCode: 200,
+                    message: `BuyRequest status updated successfully`,
+                    data: instanceToPlain(buyRequest),
+                };
+            });
+
+        } catch (error) {
+            handleServiceError(
+                error,
+                'An error occurred while updating BuyRequest status',
+            );
         }
     }
 

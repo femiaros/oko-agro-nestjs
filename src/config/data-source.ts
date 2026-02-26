@@ -13,6 +13,7 @@ import { Notification } from 'src/notifications/entities/notification.entity';
 import { PurchaseOrderDocFile } from 'src/purchase-order-doc-files/entities/purchase-order-doc-file.entity';
 import { Dispute } from 'src/disputes/entities/dispute.entity';
 import { Rating } from 'src/ratings/entities/rating.entity';
+import { ProductInventory } from 'src/product-inventories/entities/product-inventory.entity';
 
 dotenv.config();
 
@@ -29,7 +30,7 @@ export const AppDataSource = new DataSource({
   entities: [
     User, Crop, File, Certification, QualityStandard, 
     Product, FarmerProductPhotoFile, Event, BuyRequest, 
-    PurchaseOrderDocFile, Notification, Dispute, Rating
+    PurchaseOrderDocFile, Notification, Dispute, Rating, ProductInventory
   ], // ✅ Explicit entities for CLI
   migrationsTableName: 'migrations',
   migrations: [__dirname + '/../migrations/**/*.{ts,js}'],

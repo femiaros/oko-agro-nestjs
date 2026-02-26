@@ -11,6 +11,7 @@ import { Product } from 'src/products/entities/product.entity';
 import { PurchaseOrderDocFile } from 'src/purchase-order-doc-files/entities/purchase-order-doc-file.entity';
 import { PurchaseOrderDocFilesModule } from 'src/purchase-order-doc-files/purchase-order-doc-files.module';
 import { NotificationsModule } from 'src/notifications/notifications.module';
+import { ProductInventoriesModule } from 'src/product-inventories/product-inventories.module';
 
 @Module({
   imports: [
@@ -18,7 +19,8 @@ import { NotificationsModule } from 'src/notifications/notifications.module';
     PurchaseOrderDocFilesModule,
     AuthModule,
     UsersModule,
-    NotificationsModule
+    NotificationsModule,
+    ProductInventoriesModule
   ],
   providers: [BuyRequestsService],
   controllers: [BuyRequestsController]

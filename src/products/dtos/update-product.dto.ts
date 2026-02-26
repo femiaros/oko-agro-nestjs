@@ -1,7 +1,7 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateProductDto } from './create-product.dto';
 import { IsEnum, IsNotEmpty, IsNumberString, IsOptional, IsString } from 'class-validator';
-import { ProductPriceCurrency, ProductQuantityUnit } from '../entities/product.entity';
+import { ProductPriceCurrency } from '../entities/product.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UpdateProductDto {
@@ -23,17 +23,12 @@ export class UpdateProductDto {
   @ApiProperty({ example: '1000', description: 'Quantity of product requested (optional)', required: false })
   @IsNumberString()
   @IsOptional()
-  quantity?: string;
+  quantityKg?: string;
 
-  @ApiProperty({ enum: ProductQuantityUnit, example: ProductQuantityUnit.KILOGRAM, description: 'Quantity unit (optional)', required: false })
-  @IsEnum(ProductQuantityUnit)
-  @IsOptional()
-  quantityUnit?: ProductQuantityUnit;
-
-  @ApiProperty({ example: '500', description: 'Price per unit offer (e.g. per kg) (optional)', required: false })
+  @ApiProperty({ example: '500', description: 'Price per kg offer (e.g. per kg) (optional)', required: false })
   @IsNumberString()
   @IsOptional()
-  pricePerUnit?: string;
+  pricePerKg?: string;
 
   @ApiProperty({ enum: ProductPriceCurrency, example: ProductPriceCurrency.NGN, description: 'Price Currency (optional)', required: false })
   @IsEnum(ProductPriceCurrency)

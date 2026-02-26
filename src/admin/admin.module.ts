@@ -6,11 +6,13 @@ import { User } from 'src/users/entities/user.entity';
 import { BuyRequest } from 'src/buy-requests/entities/buy-request.entity';
 import { Product } from 'src/products/entities/product.entity';
 import { AuthModule } from 'src/auth/auth.module';
+import { ProductInventoriesModule } from 'src/product-inventories/product-inventories.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, BuyRequest, Product]),
-    AuthModule
+    AuthModule,
+    ProductInventoriesModule
   ],
   providers: [AdminService],
   controllers: [AdminController]

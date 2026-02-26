@@ -11,10 +11,11 @@ import {
 import { Crop } from 'src/crops/entities/crop.entity';
 import { QualityStandard } from 'src/quality-standards/entities/quality-standard.entity';
 import { User } from 'src/users/entities/user.entity';
-import { Product, ProductQuantityUnit } from 'src/products/entities/product.entity';
+import { Product } from 'src/products/entities/product.entity';
 import { PurchaseOrderDocFile } from 'src/purchase-order-doc-files/entities/purchase-order-doc-file.entity';
 import { Dispute } from 'src/disputes/entities/dispute.entity';
 import { Rating } from 'src/ratings/entities/rating.entity';
+import { ProductInventory } from 'src/product-inventories/entities/product-inventory.entity';
 
 export enum BuyRequestStatus {
   PENDING = 'pending',
@@ -31,10 +32,10 @@ export enum PaymentMethod {
   THIRTY_DAYS_PD = 'thirty_days_post_delivery',
 }
 
-export enum BuyRequestQuantityUnit {
-  KILOGRAM = 'kilogram',
-  TONNE = 'tonne',
-}
+// export enum BuyRequestQuantityUnit {
+//   KILOGRAM = 'kilogram',
+//   TONNE = 'tonne',
+// }
 
 export enum OrderState {
   AWAITING_SHIPPING = 'awaiting_shipping',
@@ -62,14 +63,17 @@ export class BuyRequest {
   @ManyToOne(() => QualityStandard, { nullable: true })
   qualityStandardType: QualityStandard | null;
 
-  @Column({ type: 'varchar' })
-  productQuantity: string;
+   /**
+   * Requested quantity (normalized to KG)
+   */
+  @Column({ type: 'decimal', precision: 30, scale: 2 })
+  productQuantityKg: string;
 
-  @Column({ type: 'enum', enum: BuyRequestQuantityUnit })
-  productQuantityUnit: BuyRequestQuantityUnit;
-
-  @Column({ type: 'varchar' })
-  pricePerUnitOffer: string;
+  /**
+   * Offered price per KG
+   */
+  @Column({ type: 'decimal', precision: 30, scale: 2 })
+  pricePerKgOffer: string;
 
   @Column({ type: 'timestamptz' })
   estimatedDeliveryDate: Date;
@@ -95,6 +99,12 @@ export class BuyRequest {
   @ManyToOne(() => Product, (product) => product.buyRequests, { nullable: true })
   product: Product | null;
 
+  /**
+   * Inventory history entries linked to this request
+   */
+  @OneToMany(() => ProductInventory, (inventory) => inventory.buyRequest)
+  inventoryMovements: ProductInventory[];
+
   @OneToOne( () => PurchaseOrderDocFile, (po) => po.buyRequest, { cascade: true, nullable: true })
   purchaseOrderDoc: PurchaseOrderDocFile | null;
 
@@ -113,7 +123,7 @@ export class BuyRequest {
   @Column({ type: 'timestamptz', nullable: true })
   completedAt: Date | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: 'decimal', precision: 30, scale: 2, nullable: true })
   paymentAmount: string | null;
 
   @Column({ type: 'boolean', default: false })
