@@ -8,14 +8,17 @@ import { FarmerProductPhotoFilesModule } from 'src/farmer-product-photo-files/fa
 import { EventsModule } from 'src/events/events.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { UsersModule } from 'src/users/users.module';
+import { User } from 'src/users/entities/user.entity';
+import { NotificationsModule } from 'src/notifications/notifications.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Product, Crop]),
+    TypeOrmModule.forFeature([Product, Crop, User]),
     FarmerProductPhotoFilesModule,
     EventsModule,
     AuthModule,
-    UsersModule
+    UsersModule,
+    NotificationsModule
   ], 
   providers: [ProductsService],
   controllers: [ProductsController]

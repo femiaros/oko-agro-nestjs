@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, DataSource } from 'typeorm';
 import { BuyRequest, OrderState } from 'src/buy-requests/entities/buy-request.entity';
 import { DisputeStatus } from 'src/disputes/entities/dispute.entity';
-import { Product } from 'src/products/entities/product.entity';
+import { ProductInventoriesService } from 'src/product-inventories/product-inventories.service';
 
 @Injectable()
 export class BuyRequestsScheduler {
@@ -15,6 +15,8 @@ export class BuyRequestsScheduler {
 
         @InjectRepository(BuyRequest)
         private readonly buyRequestsRepository: Repository<BuyRequest>,
+
+        private readonly productInventoriesService: ProductInventoriesService,
     ) {}
 
     @Cron(CronExpression.EVERY_5_MINUTES)
@@ -63,27 +65,13 @@ export class BuyRequestsScheduler {
             for (const order of eligibleOrders) {
                 await this.dataSource.transaction(async (manager) => {
 
-                    const qty = order.productQuantityKg;
+                    await this.productInventoriesService.deductStock(
+                        order.product!.id,
+                        order.productQuantityKg,
+                        order.id,
+                        manager,
+                    );
 
-                    // 🔒 Atomic permanent deduction
-                    const updateResult = await manager
-                        .createQueryBuilder()
-                        .update(Product)
-                        .set({
-                            quantityKg: () => `"quantityKg" - ${qty}`,
-                            reservedQuantityKg: () => `"reservedQuantityKg" - ${qty}`,
-                        })
-                        .where('id = :id', { id: order.product?.id })
-                        .andWhere('"quantityKg" >= :qty', { qty }) // prevent negative
-                        .execute();
-
-                    if (updateResult.affected === 0) {
-                        throw new Error(
-                            `Insufficient stock for product ${order.product?.id}`,
-                        );
-                    }
-
-                    // ✅ Mark order completed
                     order.orderState = OrderState.COMPLETED;
                     order.completedAt = new Date();
                     order.orderStateTime = new Date();

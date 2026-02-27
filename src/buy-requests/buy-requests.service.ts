@@ -31,6 +31,7 @@ export class BuyRequestsService {
         @InjectRepository(Crop) private readonly cropsRepository: Repository<Crop>,
         @InjectRepository(QualityStandard) private readonly qualityStandardRepository: Repository<QualityStandard>,
         @InjectRepository(Product) private readonly productsRepository: Repository<Product>,
+        @InjectRepository(User) private readonly usersRepository: Repository<User>,
         private readonly usersService: UsersService,
         private readonly fileService: PurchaseOrderDocFilesService,
         private readonly notificationsService: NotificationsService,
@@ -137,6 +138,27 @@ export class BuyRequestsService {
                     relatedEntityType: RelatedEntityType.BuyRequest,
                     relatedEntityId: savedBuyRequest.id
                 });
+            }
+
+            if (dto.isGeneral){
+                const farmers = await this.usersRepository.find({
+                    where: {
+                        role: UserRole.FARMER,
+                        isDeleted: false,
+                    },
+                });
+
+                for (const farmer of farmers) {
+                    await this.notificationsService.createNotification({
+                        user: farmer,
+                        type: NotificationType.System,
+                        title: `New General BuyRequest Availability`,
+                        message:
+                            `New general buyer's request REQ-${savedBuyRequest.requestNumber} is now available on the system. Processor is asking for a ${crop.name.toUpperCase()} product.`,
+                        relatedEntityType: RelatedEntityType.BuyRequest,
+                        relatedEntityId: savedBuyRequest.id
+                    });
+                }
             }
 
             return {

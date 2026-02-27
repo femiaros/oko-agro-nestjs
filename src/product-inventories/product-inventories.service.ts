@@ -152,46 +152,60 @@ export class ProductInventoriesService {
         buyRequestId: string,
         manager?: EntityManager,
     ): Promise<void> {
-        try {
-            const em = manager ?? this.dataSource.manager;
+        const em = manager ?? this.dataSource.manager;
 
+        try {
+            const quantity = new Decimal(quantityKg).toDecimalPlaces(2);
+
+            if (quantity.lte(0)) {
+                throw new Error('Invalid deduction quantity');
+            }
+
+            // ✅ Atomic deduction (race-condition safe)
+            const updateResult = await em
+                .createQueryBuilder()
+                .update(Product)
+                .set({
+                    quantityKg: () => `"quantityKg" - ${quantity.toFixed(2)}`,
+                    reservedQuantityKg: () =>
+                    `"reservedQuantityKg" - ${quantity.toFixed(2)}`,
+                })
+                .where('id = :id', { id: productId })
+                .andWhere('isDeleted = FALSE')
+                .andWhere('"quantityKg" >= :qty', { qty: quantity.toFixed(2) })
+                .andWhere('"reservedQuantityKg" >= :qty', {
+                    qty: quantity.toFixed(2),
+                })
+                .execute();
+
+            if (updateResult.affected === 0) {
+                throw new Error('Insufficient stock or product not found');
+            }
+
+            // ✅ Fetch product reference (light fetch, no locking needed now)
             const product = await em.findOne(Product, {
-                where: { id: productId, isDeleted: false },
+                where: { id: productId },
+                select: ['id'],
             });
 
             if (!product) {
-                throw new Error('Product not found or deleted');
+                throw new Error('Product not found after deduction');
             }
 
             const buyRequest = await em.findOne(BuyRequest, {
                 where: { id: buyRequestId, isDeleted: false },
+                select: ['id'],
             });
 
             if (!buyRequest) {
-                throw new Error('Buy request not found or deleted');
+                throw new Error('Buy request not found');
             }
 
-            const quantity = new Decimal(quantityKg);
-            const totalQuantity = new Decimal(product.quantityKg);
-            const reservedQuantity = new Decimal(product.reservedQuantityKg);
-
-            const newTotal = totalQuantity.minus(quantity);
-            const newReserved = reservedQuantity.minus(quantity);
-
-            if (newTotal.isNegative() || newReserved.isNegative()) {
-                throw new Error('Invalid deduction operation');
-            }
-
-            product.quantityKg = newTotal.toDecimalPlaces(2).toFixed(2);
-
-            product.reservedQuantityKg = newReserved.toDecimalPlaces(2).toFixed(2);
-
-            await em.save(Product, product);
-
+            // ✅ Create inventory log
             const inventory = em.create(ProductInventory, {
                 product,
                 buyRequest,
-                quantityKg: quantity.toDecimalPlaces(2).toFixed(2),
+                quantityKg: quantity.toFixed(2),
                 type: ProductInventoryType.DEDUCTION,
             });
 

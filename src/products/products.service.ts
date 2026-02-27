@@ -5,7 +5,7 @@ import { Product, ProductApprovalStatus } from './entities/product.entity';
 import { Crop } from 'src/crops/entities/crop.entity';
 import { FarmerProductPhotoFilesService } from 'src/farmer-product-photo-files/farmer-product-photo-files.service';
 import { EventsService } from 'src/events/events.service';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CreateProductDto } from './dtos/create-product.dto';
 import { User, UserRole } from 'src/users/entities/user.entity';
 import { isValidImageType, isValidBase64Size } from 'src/common/utils/base64.util';
@@ -17,12 +17,16 @@ import { UsersService } from 'src/users/users.service';
 import { instanceToPlain } from 'class-transformer';
 import { AdminApprovalAction, UpdateProductApprovalDto } from './dtos/update-product-approval.dto';
 import { ProductListingQueryDto } from './dtos/product-listing-query.dto';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { NotificationType, RelatedEntityType } from 'src/notifications/entities/notification.entity';
 
 @Injectable()
 export class ProductsService {
     constructor(
         @InjectRepository(Product) private readonly productsRepository: Repository<Product>,
         @InjectRepository(Crop) private readonly cropsRepository: Repository<Crop>,
+        @InjectRepository(User) private readonly usersRepository: Repository<User>,
+        private readonly notificationsService: NotificationsService,
         private readonly photoService: FarmerProductPhotoFilesService,
         private readonly eventsService: EventsService,
         private readonly usersService: UsersService,
@@ -81,6 +85,26 @@ export class ProductsService {
                     owner,
                 });
             }
+
+            const admins = await this.usersRepository.find({
+                where: {
+                    role: In([UserRole.ADMIN, UserRole.SUPER_ADMIN]),
+                    isDeleted: false,
+                },
+            });
+
+            for (const admin of admins) {
+                await this.notificationsService.createNotification({
+                    user: admin,
+                    type: NotificationType.System,
+                    title: `Pending Approval`,
+                    message: 
+                        `A new product with id: ${product.id} is pending approval`, 
+                    relatedEntityType: RelatedEntityType.Product,
+                    relatedEntityId: product.id
+                });
+            }
+
 
             return {
                 statusCode: 201,
@@ -347,6 +371,10 @@ export class ProductsService {
 
             const product = await this.productsRepository.findOne({
                 where: { id: productId, isDeleted: false },
+                relations: [
+                    'cropType',
+                    'owner',
+                ],
             });
 
             if (!product) throw new NotFoundException('Product not found');
@@ -368,6 +396,29 @@ export class ProductsService {
 
             product.approvalStatus = newStatus;
             const updatedProduct = await this.productsRepository.save(product);
+
+            if (approvalStatus === AdminApprovalAction.APPROVE) {
+                const processors = await this.usersRepository.find({
+                    where: {
+                        role: UserRole.PROCESSOR,
+                        isDeleted: false,
+                    },
+                });
+
+                for (const processor of processors) {
+                    await this.notificationsService.createNotification({
+                        user: processor,
+                        type: NotificationType.System,
+                        title: `New Product Availability`,
+                        message: 
+                            `New ${product.cropType.name.toLowerCase()} is now available on the system. Product was uploaded by ${product.owner.farmName?.toUpperCase()}`, 
+                        relatedEntityType: RelatedEntityType.Product,
+                        relatedEntityId: product.id
+                    });
+                }
+
+            }
+
 
             return {
                 statusCode: 200,

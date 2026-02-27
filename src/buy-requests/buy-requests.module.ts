@@ -12,10 +12,11 @@ import { PurchaseOrderDocFile } from 'src/purchase-order-doc-files/entities/purc
 import { PurchaseOrderDocFilesModule } from 'src/purchase-order-doc-files/purchase-order-doc-files.module';
 import { NotificationsModule } from 'src/notifications/notifications.module';
 import { ProductInventoriesModule } from 'src/product-inventories/product-inventories.module';
+import { User } from 'src/users/entities/user.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([BuyRequest, Crop, QualityStandard, Product, PurchaseOrderDocFile]),
+    TypeOrmModule.forFeature([BuyRequest, Crop, QualityStandard, Product, PurchaseOrderDocFile, User]),
     PurchaseOrderDocFilesModule,
     AuthModule,
     UsersModule,
