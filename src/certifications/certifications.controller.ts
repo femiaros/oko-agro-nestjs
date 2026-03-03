@@ -6,8 +6,10 @@ import { RolesGuard } from 'src/auth/guards/roles-guard';
 import { CertificationsService } from './certifications.service';
 import { Certification } from './entities/certification.entity';
 import { CreateCertificationDto } from './dtos/create-certification.dto';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
-
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('certifications')
 export class CertificationsController {
     constructor(private readonly certificationsService: CertificationsService) {}
@@ -15,7 +17,8 @@ export class CertificationsController {
     @Post('create')
     @HttpCode(HttpStatus.CREATED)
     @Roles(UserRole.ADMIN)
-    @UseGuards(JwtAuthGuard, RolesGuard)
+    @UseGuards(RolesGuard)
+    @HttpCode(HttpStatus.CREATED)
     async create(@Body() createCertificationDto: CreateCertificationDto): Promise<Certification> {
         return this.certificationsService.create(createCertificationDto);
     }

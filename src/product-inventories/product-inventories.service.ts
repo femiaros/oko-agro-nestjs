@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, EntityManager  } from 'typeorm';
 import Decimal from 'decimal.js';
@@ -47,7 +47,7 @@ export class ProductInventoriesService {
             });
 
             if (!product) {
-                throw new Error('Product not found or deleted');
+                throw new BadRequestException('Product not found or deleted');
             }
 
             const buyRequest = await em.findOne(BuyRequest, {
@@ -55,7 +55,7 @@ export class ProductInventoriesService {
             });
 
             if (!buyRequest) {
-                throw new Error('Buy request not found or deleted');
+                throw new BadRequestException('Buy request not found or deleted');
             }
 
             const quantity = new Decimal(quantityKg);
@@ -65,7 +65,7 @@ export class ProductInventoriesService {
             const available = totalQuantity.minus(reservedQuantity);
 
             if (quantity.greaterThan(available)) {
-                throw new Error('Insufficient available stock');
+                throw new BadRequestException('Insufficient available stock');
             }
 
             const newReserved = reservedQuantity.plus(quantity);
@@ -105,7 +105,7 @@ export class ProductInventoriesService {
             });
 
             if (!product) {
-                throw new Error('Product not found or deleted');
+                throw new BadRequestException('Product not found or deleted');
             }
 
             const buyRequest = await em.findOne(BuyRequest, {
@@ -113,7 +113,7 @@ export class ProductInventoriesService {
             });
 
             if (!buyRequest) {
-                throw new Error('Buy request not found or deleted');
+                throw new BadRequestException('Buy request not found or deleted');
             }
 
             const quantity = new Decimal(quantityKg);
@@ -122,7 +122,7 @@ export class ProductInventoriesService {
             const newReserved = reservedQuantity.minus(quantity);
 
             if (newReserved.isNegative()) {
-                throw new Error('Reserved quantity cannot be negative');
+                throw new BadRequestException('Reserved quantity cannot be negative');
             }
 
             product.reservedQuantityKg = newReserved.toDecimalPlaces(2).toFixed(2);
@@ -158,7 +158,7 @@ export class ProductInventoriesService {
             const quantity = new Decimal(quantityKg).toDecimalPlaces(2);
 
             if (quantity.lte(0)) {
-                throw new Error('Invalid deduction quantity');
+                throw new BadRequestException('Invalid deduction quantity');
             }
 
             // ✅ Atomic deduction (race-condition safe)
@@ -179,7 +179,7 @@ export class ProductInventoriesService {
                 .execute();
 
             if (updateResult.affected === 0) {
-                throw new Error('Insufficient stock or product not found');
+                throw new BadRequestException('Insufficient stock or product not found');
             }
 
             // ✅ Fetch product reference (light fetch, no locking needed now)
@@ -189,7 +189,7 @@ export class ProductInventoriesService {
             });
 
             if (!product) {
-                throw new Error('Product not found after deduction');
+                throw new BadRequestException('Product not found after deduction');
             }
 
             const buyRequest = await em.findOne(BuyRequest, {
@@ -198,7 +198,7 @@ export class ProductInventoriesService {
             });
 
             if (!buyRequest) {
-                throw new Error('Buy request not found');
+                throw new BadRequestException('Buy request not found');
             }
 
             // ✅ Create inventory log

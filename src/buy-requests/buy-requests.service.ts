@@ -14,7 +14,7 @@ import { UpdateBuyRequestStatusDto } from './dtos/update-buy-request-status.dto'
 import { UpdateBuyRequestDto } from './dtos/update-buy-request.dto';
 import { UpdateOrderStateDto } from './dtos/update-order-state.dto';
 import { OngoingBuyRequestOrdersQueryDto } from './dtos/ongoing-buy-request-orders-query.dto';
-import { detectMimeTypeFromBase64, isValidBase64SizeGeneric, SUPPORTED_MIME_TYPES } from 'src/common/utils/base64.util';
+import { detectMimeTypeFromBase64, isValidBase64SizeGeneric, PO_SUPPORTED_MIME_TYPES, SUPPORTED_MIME_TYPES } from 'src/common/utils/base64.util';
 import { PurchaseOrderDocFilesService } from 'src/purchase-order-doc-files/purchase-order-doc-files.service';
 import { UpdatePurchaseOrderDocDto } from './dtos/update-purchase-order-doc.dto';
 import { NotificationsService } from 'src/notifications/notifications.service';
@@ -23,6 +23,7 @@ import { DirectBuyRequestDto } from './dtos/direct-buy-request.dto';
 import { GetAllBuyRequestsQueryDto } from './dtos/get-all-buy-requests.query.dto';
 import { ProductInventoriesService } from 'src/product-inventories/product-inventories.service';
 import Decimal from 'decimal.js';
+import { ProductInventory, ProductInventoryType } from 'src/product-inventories/entities/product-inventory.entity';
 
 @Injectable()
 export class BuyRequestsService {
@@ -55,18 +56,18 @@ export class BuyRequestsService {
             }
 
             // Allowed docsize - 2mb
-            const docSize = 2 * 1024 * 1024;
+            const docSize = 1 * 1024 * 1024;
 
             if (purchaseOrderDoc){
                 const detected = detectMimeTypeFromBase64(purchaseOrderDoc);
 
-                if (!detected || !SUPPORTED_MIME_TYPES.includes(detected)) {
-                    throw new BadRequestException( 'PurchaseOrderDoc must be JPEG, PNG, or PDF format.' );
+                if (!detected || !PO_SUPPORTED_MIME_TYPES.includes(detected)) {
+                    throw new BadRequestException( 'PurchaseOrderDoc must be DOC or PDF format.' );
                 }
 
-                // Validate size: 2MB
+                // Validate size: 1MB
                 if (!isValidBase64SizeGeneric(purchaseOrderDoc, docSize)) {
-                    throw new BadRequestException('PurchaseOrderDoc must be 2MB or less.');
+                    throw new BadRequestException('PurchaseOrderDoc must be 1MB or less.');
                 }
             }
 
@@ -861,16 +862,16 @@ export class BuyRequestsService {
         try {
             const detected = detectMimeTypeFromBase64(dto.purchaseOrderDoc);
 
-            if (!detected || !SUPPORTED_MIME_TYPES.includes(detected)) {
-                throw new BadRequestException( 'PurchaseOrderDoc must be JPEG, PNG, or PDF format.' );
+            if (!detected || !PO_SUPPORTED_MIME_TYPES.includes(detected)) {
+                throw new BadRequestException( 'PurchaseOrderDoc must be DOC or PDF format.' );
             }
 
             // Allowed docsize - 2mb
-            const docSize = 2 * 1024 * 1024;
+            const docSize = 1 * 1024 * 1024;
 
             // Validate size
             if (!isValidBase64SizeGeneric(dto.purchaseOrderDoc, docSize)) {
-                throw new BadRequestException('PurchaseOrderDoc must be 2MB or less.');
+                throw new BadRequestException('PurchaseOrderDoc must be 1MB or less.');
             }
 
             const buyRequest = await this.buyRequestsRepository.findOne({
@@ -952,6 +953,8 @@ export class BuyRequestsService {
                 });
 
                 if (!buyRequest) throw new NotFoundException('BuyRequest not found');
+
+                if (buyRequest.status === BuyRequestStatus.CANCELLED) throw new BadRequestException('BuyRequest cannot be updated');
 
                 const editableStates = [OrderState.AWAITING_SHIPPING];
 
@@ -1045,10 +1048,17 @@ export class BuyRequestsService {
 
                     await buyRequestRepo.save(buyRequest);
 
-                    if (previousProduct) {
+                    const reservation = await manager.findOne(ProductInventory, {
+                        where: {
+                            buyRequest: { id: buyRequest.id },
+                            type: ProductInventoryType.RESERVATION
+                        },
+                    });
+
+                    if (reservation && previousProduct) {
                         await this.productInventoriesService.releaseStock(
                             previousProduct.id,
-                            buyRequest.productQuantityKg,
+                            buyRequest.productQuantityKg, // reservation.quantityKg, // safer
                             buyRequest.id,
                             manager,
                         );

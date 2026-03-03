@@ -166,7 +166,7 @@ export class AuthService {
     async registerUser(registerUserDto: RegisterUserDto) {
         try{
             const {
-                confirmPassword,cropIds,certificationIds,qualityStandardIds,
+                email,confirmPassword,cropIds,certificationIds,qualityStandardIds,
                 userPhoto, farmPhoto, businessRegCertDoc, taxIdCertDoc,
                 ...userData
             } = registerUserDto;
@@ -242,6 +242,7 @@ export class AuthService {
                 // First-time registration
                 user = this.usersRepository.create({
                     ...userData,
+                    email: email.trim().toLowerCase(),
                     password: hashedPassword,
                     crops,
                     certifications,
@@ -313,7 +314,7 @@ export class AuthService {
 
     async loginUser(loginUserDto: LoginUserDto) {
         const existingUser = await this.usersRepository.findOne({ 
-            where: { email: loginUserDto.email },
+            where: { email: loginUserDto.email.trim().toLowerCase() },
             relations: ['crops','files','certifications','qualityStandards'],
         })
 

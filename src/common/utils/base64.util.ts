@@ -1,46 +1,5 @@
 import { Buffer } from 'buffer';
 
-
-/**
- * Normalize base64 input into a proper data URI (with MIME prefix).
- * Detects JPEG/PNG if missing.
- */
-// export function normalizeBase64(base64: string): { base64: string; mimeType: string } {
-//     // Case 1: If already a data URI with MIME type
-//     const mimeMatch = base64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/);
-//     // const mimeMatch = base64.match(/^data:([a-zA-Z0-9/+.-]+);base64,/); // - Try this line if application/pdf check dont work directly
-
-//     if (mimeMatch) {
-//         return { base64, mimeType: mimeMatch[1] };
-//     }
-
-//     // Case 2: Raw base64 (no header) → detect type by magic numbers
-//     const buffer = Buffer.from(base64, 'base64');
-//     let mimeType = 'application/octet-stream';
-
-//     if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
-//         mimeType = 'image/jpeg';
-//     } else if (
-//         buffer[0] === 0x89 &&
-//         buffer[1] === 0x50 &&
-//         buffer[2] === 0x4e &&
-//         buffer[3] === 0x47
-//     ) {
-//         mimeType = 'image/png';
-//     }else if (
-//         buffer[0] === 0x25 &&
-//         buffer[1] === 0x50 &&
-//         buffer[2] === 0x44 &&
-//         buffer[3] === 0x46
-//     ) {
-//         mimeType = 'application/pdf';
-//     }
-
-//     // Prefix the base64 with detected MIME type
-//     const normalizedBase64 = `data:${mimeType};base64,${base64}`;
-//     return { base64: normalizedBase64, mimeType };
-// }
-
 export function normalizeBase64(base64: string): { base64: string; mimeType: string } {
     const existingHeader = base64.match(/^data:([a-zA-Z0-9/+.-]+);base64,/);
 
@@ -124,24 +83,40 @@ export function detectMimeTypeFromBase64(base64: string): string | null {
     try {
         const buffer = Buffer.from(base64, 'base64');
 
-        if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff)
-        return 'image/jpeg';
+        // JPEG
+        if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'image/jpeg';
 
+        // PNG
         if (
-        buffer[0] === 0x89 &&
-        buffer[1] === 0x50 &&
-        buffer[2] === 0x4e &&
-        buffer[3] === 0x47
-        )
-        return 'image/png';
+            buffer[0] === 0x89 &&
+            buffer[1] === 0x50 &&
+            buffer[2] === 0x4e &&
+            buffer[3] === 0x47
+        ) return 'image/png';
 
+        // PDF
         if (
-        buffer[0] === 0x25 &&  // %
-        buffer[1] === 0x50 &&  // P
-        buffer[2] === 0x44 &&  // D
-        buffer[3] === 0x46     // F
-        )
-        return 'application/pdf';
+            buffer[0] === 0x25 &&  // %
+            buffer[1] === 0x50 &&  // P
+            buffer[2] === 0x44 &&  // D
+            buffer[3] === 0x46     // F
+        ) return 'application/pdf';
+
+        // DOC (old Word format)
+        if (
+            buffer[0] === 0xd0 &&
+            buffer[1] === 0xcf &&
+            buffer[2] === 0x11 &&
+            buffer[3] === 0xe0
+        ) return 'application/msword';
+
+        // DOCX (modern Word - ZIP container)
+        if (
+            buffer[0] === 0x50 &&
+            buffer[1] === 0x4b &&
+            buffer[2] === 0x03 &&
+            buffer[3] === 0x04
+        ) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
         return null;
     } catch {
@@ -153,4 +128,12 @@ export const SUPPORTED_MIME_TYPES: ReadonlyArray<string> = [
     'image/jpeg',
     'image/png',
     'application/pdf',
+    'application/msword', // .doc
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+];
+
+export const PO_SUPPORTED_MIME_TYPES: ReadonlyArray<string> = [
+    'application/pdf',
+    'application/msword', // .doc
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
 ];

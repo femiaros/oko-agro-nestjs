@@ -6,7 +6,10 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles-guard';
 import { QualityStandard } from './entities/quality-standard.entity';
 import { CreateQualityStandardDto } from './dtos/create-quality-standard.dto';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('quality-standards')
 export class QualityStandardsController {
     constructor(private readonly certificationsService: QualityStandardsService) {}
@@ -14,7 +17,8 @@ export class QualityStandardsController {
     @Post('create')
     @HttpCode(HttpStatus.CREATED)
     @Roles(UserRole.ADMIN)
-    @UseGuards(JwtAuthGuard, RolesGuard)
+    @UseGuards(RolesGuard)
+    @HttpCode(HttpStatus.CREATED)
     async create(@Body() createQualityStandardDto: CreateQualityStandardDto): Promise<QualityStandard> {
         return this.certificationsService.create(createQualityStandardDto);
     }

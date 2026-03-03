@@ -6,7 +6,10 @@ import { Roles } from 'src/auth/decorators/roles.decorators';
 import { UserRole } from 'src/users/entities/user.entity';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles-guard';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('crops')
 export class CropsController {
     constructor(private readonly cropsService: CropsService) {}
@@ -14,7 +17,8 @@ export class CropsController {
     @Post('create')
     @HttpCode(HttpStatus.CREATED)
     @Roles(UserRole.ADMIN)
-    @UseGuards(JwtAuthGuard, RolesGuard)
+    @UseGuards(RolesGuard)
+    @HttpCode(HttpStatus.CREATED)
     async create(@Body() createCropDto: CreateCropDto): Promise<Crop> {
         return this.cropsService.create(createCropDto);
     }
