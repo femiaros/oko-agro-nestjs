@@ -9,21 +9,20 @@ import { CreateCertificationDto } from './dtos/create-certification.dto';
 import { ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard,RolesGuard)
 @Controller('certifications')
 export class CertificationsController {
     constructor(private readonly certificationsService: CertificationsService) {}
 
     @Post('create')
-    @HttpCode(HttpStatus.CREATED)
-    @Roles(UserRole.ADMIN)
-    @UseGuards(RolesGuard)
+    @Roles(UserRole.ADMIN,UserRole.SUPER_ADMIN)
     @HttpCode(HttpStatus.CREATED)
     async create(@Body() createCertificationDto: CreateCertificationDto): Promise<Certification> {
         return this.certificationsService.create(createCertificationDto);
     }
 
     @Get()
+    @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.FARMER, UserRole.PROCESSOR)
     @HttpCode(HttpStatus.OK)
     async findAll(): Promise<Certification[]> {
         return this.certificationsService.findAll();

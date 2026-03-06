@@ -9,21 +9,20 @@ import { CreateQualityStandardDto } from './dtos/create-quality-standard.dto';
 import { ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard,RolesGuard)
 @Controller('quality-standards')
 export class QualityStandardsController {
     constructor(private readonly certificationsService: QualityStandardsService) {}
 
     @Post('create')
-    @HttpCode(HttpStatus.CREATED)
-    @Roles(UserRole.ADMIN)
-    @UseGuards(RolesGuard)
+    @Roles(UserRole.ADMIN,UserRole.SUPER_ADMIN)
     @HttpCode(HttpStatus.CREATED)
     async create(@Body() createQualityStandardDto: CreateQualityStandardDto): Promise<QualityStandard> {
         return this.certificationsService.create(createQualityStandardDto);
     }
 
     @Get()
+    @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.FARMER, UserRole.PROCESSOR)
     @HttpCode(HttpStatus.OK)
     async findAll(): Promise<QualityStandard[]> {
         return this.certificationsService.findAll();
