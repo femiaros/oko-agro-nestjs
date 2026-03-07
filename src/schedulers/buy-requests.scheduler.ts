@@ -5,6 +5,7 @@ import { Repository, LessThan, DataSource } from 'typeorm';
 import { BuyRequest, OrderState } from 'src/buy-requests/entities/buy-request.entity';
 import { DisputeStatus } from 'src/disputes/entities/dispute.entity';
 import { ProductInventoriesService } from 'src/product-inventories/product-inventories.service';
+import Decimal from 'decimal.js';
 
 @Injectable()
 export class BuyRequestsScheduler {
@@ -36,6 +37,8 @@ export class BuyRequestsScheduler {
             const eligibleOrders = await this.buyRequestsRepository
                 .createQueryBuilder('buyRequest')
                 .leftJoinAndSelect('buyRequest.product', 'product')
+                .leftJoinAndSelect('buyRequest.buyer', 'buyer')
+                .leftJoinAndSelect('buyRequest.seller', 'seller')
                 .where('buyRequest.orderState = :delivered', {
                     delivered: OrderState.DELIVERED,
                 })
@@ -64,7 +67,7 @@ export class BuyRequestsScheduler {
 
             for (const order of eligibleOrders) {
                 await this.dataSource.transaction(async (manager) => {
-
+                    // 1️⃣ Deduct stock + create inventory log
                     await this.productInventoriesService.deductStock(
                         order.product!.id,
                         order.productQuantityKg,
@@ -72,6 +75,42 @@ export class BuyRequestsScheduler {
                         manager,
                     );
 
+                    // 2️⃣ Calculate amount using Decimal
+                    const amount = new Decimal(order.paymentAmount ?? '0');
+
+                    // 3️⃣ Update seller lifetime sales
+                    if (order.seller) {
+                        const sellerTotal = new Decimal(
+                            order.seller.totalFarmerSalesAmount ?? '0',
+                        );
+
+                        order.seller.totalFarmerSalesAmount = sellerTotal
+                            .plus(amount)
+                            .toDecimalPlaces(2)
+                            .toFixed(2);
+                        
+                        order.seller.buyRequestCompleted = (order.seller.buyRequestCompleted + 1); 
+
+                        await manager.save(order.seller);
+                    }
+
+                    // 4️⃣ Update buyer lifetime purchases
+                    if (order.buyer) {
+                        const buyerTotal = new Decimal(
+                            order.buyer.totalProcessorPurchasesAmount ?? '0',
+                        );
+
+                        order.buyer.totalProcessorPurchasesAmount = buyerTotal
+                            .plus(amount)
+                            .toDecimalPlaces(2)
+                            .toFixed(2);
+
+                        order.buyer.buyRequestCompleted = (order.buyer.buyRequestCompleted + 1);
+                        
+                        await manager.save(order.buyer);
+                    }
+
+                    // 5️⃣ Mark order completed
                     order.orderState = OrderState.COMPLETED;
                     order.completedAt = new Date();
                     order.orderStateTime = new Date();

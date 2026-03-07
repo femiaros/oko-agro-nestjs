@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { BuyRequest, OrderState } from 'src/buy-requests/entities/buy-request.entity';
 import { handleServiceError } from 'src/common/utils/error-handler.util';
@@ -12,9 +12,13 @@ import { UpdateAdminPasswordDto } from './dtos/update-admin-password.dto';
 import * as bcrypt from 'bcrypt';
 import { GetAllAdminsQueryDto } from './dtos/get-all-admins-query.dto';
 import { instanceToPlain } from 'class-transformer';
+import { TopPerformingUsersQueryDto } from './dtos/top-performing-users-query.dto';
+import { TopPerformingRegionsQueryDto } from './dtos/top-performing-regions-query.dto';
 
 @Injectable()
 export class AdminService {
+    private readonly logger = new Logger(AdminService.name);
+
     constructor(
         @InjectRepository(User)
         private readonly usersRepository: Repository<User>,
@@ -77,6 +81,111 @@ export class AdminService {
             };
         } catch (error) {
             handleServiceError(error, 'Failed to fetch dashboard stats');
+        }
+    }
+
+    async topPerformingUsers(query: TopPerformingUsersQueryDto) {
+        try {
+            const { role } = query;
+
+            if (!role || !['farmer', 'processor'].includes(role)) {
+                throw new BadRequestException('Role must be either farmer or processor');
+            }
+
+            let orderField = '';
+
+            if (role === 'farmer') {
+                orderField = 'totalFarmerSalesAmount';
+            }
+
+            if (role === 'processor') {
+                orderField = 'totalProcessorPurchasesAmount';
+            }
+
+            const users = await this.usersRepository.find({
+                where: {  
+                    role: role ? role : In([UserRole.FARMER, UserRole.PROCESSOR]),
+                    isDeleted: false
+                },
+                order: { [orderField]: 'DESC' },
+                take: 10,
+                select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    role: true,
+                    totalFarmerSalesAmount: true,
+                    totalProcessorPurchasesAmount: true,
+                    createdAt: true,
+                },
+            });
+
+            const mappedUsers = users.map(user => ({
+                id: user.id,
+                name: `${user.firstName} ${user.lastName}`,
+                role: user.role,
+                performanceAmount:
+                    role === 'farmer'
+                    ? user.totalFarmerSalesAmount
+                    : user.totalProcessorPurchasesAmount,
+                country: user.country,
+                ordersCompleted: user.buyRequestCompleted
+            }));
+
+            return {
+                statusCode: 200,
+                message: 'Top performing users fetched successfully',
+                data: {
+                    users: mappedUsers,
+                    totalRecord: mappedUsers.length
+                },
+            };
+
+        } catch (error) {
+            this.logger.error('Error while fetching top performing users', error.stack );
+            handleServiceError( error,'An error occurred while fetching top performing users' );
+        }
+    }
+
+    async topPerformingRegions(query: TopPerformingRegionsQueryDto) {
+        try {
+            const country = query.country || 'Nigeria';
+
+            const rawRegions = await this.usersRepository
+                .createQueryBuilder('user')
+                .select('user.state', 'state')
+                .addSelect('user.country', 'country')
+                .addSelect('SUM(user.totalFarmerSalesAmount)', 'totalCompletedAmount')
+                .addSelect('COUNT(user.id)', 'totalUsers')
+                .where('user.country = :country', { country })
+                .andWhere('user.isDeleted = :isDeleted', { isDeleted: false })
+                .andWhere('user.state IS NOT NULL')
+                .andWhere("user.state != ''")
+                .groupBy('user.state')
+                .addGroupBy('user.country')
+                .orderBy('SUM(user.totalFarmerSalesAmount)', 'DESC')
+                .limit(10)
+                .getRawMany();
+
+            const regions = rawRegions.map((region) => ({
+                state: region.state,
+                country: region.country,
+                totalCompletedAmount: region.totalCompletedAmount,
+                totalUsers: Number(region.totalUsers),
+            }));
+
+            return {
+                statusCode: 200,
+                message: 'Top performing regions fetched successfully',
+                data: {
+                    regions,
+                    totalRecord: regions.length,
+                }
+            };
+
+        } catch (error) {
+            this.logger.error('Error while fetching top performing regions', error.stack );
+            handleServiceError( error, 'An error occurred while fetching top performing regions' );
         }
     }
 

@@ -2,6 +2,40 @@ import { ApiProperty } from "@nestjs/swagger";
 import { ApiResponseDto } from "src/common/dto/api-response.dto";
 import { UsersPaginationData } from "src/users/dtos/response.dto";
 
+class TopUserData {
+    @ApiProperty({ example: '11e98165-0530-489c-9b1a-d8359da59536' })
+    id: string;
+
+    @ApiProperty({ example: 'john doe' })
+    name: string;
+
+    @ApiProperty({ example: 'farmer' })
+    role: string;
+
+    @ApiProperty({ example: '1345008.00' })
+    performanceAmount: string;
+
+    @ApiProperty({ example: 'nigeria' })
+    country: string;
+
+    @ApiProperty({ example: 6 })
+    ordersCompleted: number;
+}
+
+class TopRegionData {
+    @ApiProperty({ example: 'Lagos' })
+    state: string;
+
+    @ApiProperty({ example: 'Nigeria' })
+    country: string;
+
+    @ApiProperty({ example: '99345080.00' })
+    totalCompletedAmount: string;
+
+    @ApiProperty({ example: 2000 })
+    totalUsers: number;
+}
+
 export class DashboardOverviewDataDto {
     @ApiProperty({ example: 176 })
     totalUsers: number;
@@ -16,12 +50,44 @@ export class DashboardOverviewDataDto {
     pendingListings: number;
 }
 
+export class TopPerformingUserDataDto {
+    @ApiProperty({ type: () => [TopUserData] })
+    users: TopUserData[];
+
+    @ApiProperty({ example: 10 })
+    totalRecord: number;
+}
+
+export class TopPerformingRegionDataDto {
+    @ApiProperty({ type: () => [TopRegionData] })
+    regions: TopRegionData[];
+
+    @ApiProperty({ example: 10 })
+    totalRecord: number;
+}
+
 export class DashboardOverviewResponseDto extends ApiResponseDto<DashboardOverviewDataDto> {
     @ApiProperty({ example: 'Dashboard stats fetched successfully' })
     declare message: string;
 
     @ApiProperty({ type: DashboardOverviewDataDto })
     declare data: DashboardOverviewDataDto;
+}
+
+export class TopPerformingUsersResponseDto extends ApiResponseDto<TopPerformingUserDataDto> {
+    @ApiProperty({ example: 'Top performing users fetched successfully' })
+    declare message: string;
+
+    @ApiProperty({ type: TopPerformingUserDataDto })
+    declare data: TopPerformingUserDataDto;
+}
+
+export class TopPerformingRegionsResponseDto extends ApiResponseDto<TopPerformingRegionDataDto> {
+    @ApiProperty({ example: 'Top performing regions fetched successfully' })
+    declare message: string;
+
+    @ApiProperty({ type: TopPerformingRegionDataDto })
+    declare data: TopPerformingRegionDataDto;
 }
 
 export class CreateAdminData {

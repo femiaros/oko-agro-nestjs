@@ -7,7 +7,7 @@ import { User, UserRole } from 'src/users/entities/user.entity';
 import { AdminService } from './admin.service';
 import { 
     CreateAdminResponseDto, DashboardOverviewResponseDto, 
-    DeleteAdminResponseDto, GetAdminsResponseDto, UpdateAdminPwdResponseDto, UpdateUserResponseDto 
+    DeleteAdminResponseDto, GetAdminsResponseDto, TopPerformingRegionsResponseDto, TopPerformingUsersResponseDto, UpdateAdminPwdResponseDto, UpdateUserResponseDto 
 } from './dtos/response.dto';
 import { CreateAdminUserDto } from './dtos/create-admin-user.dto';
 import { UpdateUserStatusDto } from './dtos/update-user-status.dto';
@@ -16,6 +16,8 @@ import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { GetAllAdminsQueryDto } from './dtos/get-all-admins-query.dto';
 import { ProductInventoriesService } from 'src/product-inventories/product-inventories.service';
 import { GetInventoriesQueryDto } from 'src/product-inventories/dtos/get-inventories-query.dto';
+import { TopPerformingUsersQueryDto } from './dtos/top-performing-users-query.dto';
+import { TopPerformingRegionsQueryDto } from './dtos/top-performing-regions-query.dto';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -33,6 +35,30 @@ export class AdminController {
     @HttpCode(HttpStatus.OK)
     async getDashboardOverview() {
         return this.adminService.getDashboardOverview();
+    }
+
+    @Get('top-performing-users')
+    @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+    @ApiOperation({ 
+        summary: "Get top performing users (famers & processors)",
+        description: 'Filtering on role: `farmer`, or, `processor`.',
+    })
+    @ApiResponse({ status: 200, description: "Top performing users fetched successfully", type: TopPerformingUsersResponseDto })
+    @HttpCode(HttpStatus.OK)
+    async topPerformingUsers( @Query() query: TopPerformingUsersQueryDto ) {
+        return this.adminService.topPerformingUsers(query);
+    }
+
+    @Get('top-performing-regions')
+    @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+    @ApiOperation({ 
+        summary: "Get top performing regions (states in a country)",
+        description: 'Filtering on country: e.g Nigeria',
+    })
+    @ApiResponse({ status: 200, description: "Top performing regions fetched successfully", type: TopPerformingRegionsResponseDto })
+    @HttpCode(HttpStatus.OK)
+    async topPerformingRegions( @Query() query: TopPerformingRegionsQueryDto ) {
+        return this.adminService.topPerformingRegions(query);
     }
 
     @Post('create-admin')

@@ -6,7 +6,7 @@ import { QualityStandard } from 'src/quality-standards/entities/quality-standard
 import { Product } from 'src/products/entities/product.entity';
 import { Event } from 'src/events/entities/event.entity';
 import { Notification } from 'src/notifications/entities/notification.entity';
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToMany, JoinTable, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToMany, JoinTable, OneToMany, Index } from 'typeorm';
 import { BuyRequest } from 'src/buy-requests/entities/buy-request.entity';
 import { Dispute } from 'src/disputes/entities/dispute.entity';
 import { Rating } from 'src/ratings/entities/rating.entity';
@@ -49,6 +49,7 @@ export enum OperatingDaysPerWeek {
 }
 
 @Entity('users')
+@Index(['country', 'state'])
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -72,9 +73,11 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   farmAddress: string | null;
 
+  // @Index()
   @Column({ type: 'varchar', nullable: true })
   country: string | null;
 
+  // @Index()
   @Column({ type: 'varchar', nullable: true })
   state: string | null;
 
@@ -172,6 +175,19 @@ export class User {
   @Exclude()
   @Column({ type: 'timestamptz', nullable: true })
   passwordChangedAt: Date | null;
+
+  @Exclude()
+  @Index()
+  @Column({ type: 'bigint', default: 0 })
+  buyRequestCompleted: number;
+
+  @Exclude()
+  @Column({ type: 'decimal', precision: 30, scale: 2, default: '0.00' })
+  totalFarmerSalesAmount: string;
+
+  @Exclude()
+  @Column({ type: 'decimal', precision: 30, scale: 2, default: '0.00' })
+  totalProcessorPurchasesAmount: string; 
 
   @Column({ type: 'boolean', default: false })
   isDisabled: boolean; // disable user account
