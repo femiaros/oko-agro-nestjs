@@ -314,7 +314,7 @@ export class AuthService {
 
     async loginUser(loginUserDto: LoginUserDto) {
         const existingUser = await this.usersRepository.findOne({ 
-            where: { email: loginUserDto.email.trim().toLowerCase() },
+            where: { email: ILike(loginUserDto.email) },
             relations: ['crops','files','certifications','qualityStandards'],
         })
 
