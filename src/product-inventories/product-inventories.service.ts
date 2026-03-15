@@ -274,6 +274,9 @@ export class ProductInventoriesService {
                 .createQueryBuilder('inventory')
                 .leftJoinAndSelect('inventory.product', 'product')
                 .leftJoinAndSelect('product.cropType', 'cropType')
+                .leftJoinAndSelect('inventory.buyRequest', 'buyRequest')
+                .leftJoinAndSelect('buyRequest.buyer', 'buyer')
+                .leftJoinAndSelect('buyRequest.seller', 'seller')
                 .orderBy('inventory.createdAt', 'DESC');
 
             // 🔍 Search filter (product.name OR cropType.name)

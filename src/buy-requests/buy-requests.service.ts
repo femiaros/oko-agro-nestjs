@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, MoreThan, Repository } from 'typeorm';
 import { BuyRequest, BuyRequestStatus, OrderState } from './entities/buy-request.entity';
@@ -27,6 +27,8 @@ import { ProductInventory, ProductInventoryType } from 'src/product-inventories/
 
 @Injectable()
 export class BuyRequestsService {
+    private readonly logger = new Logger(BuyRequestsService.name);
+    
     constructor(
         @InjectRepository(BuyRequest) private readonly buyRequestsRepository: Repository<BuyRequest>,
         @InjectRepository(Crop) private readonly cropsRepository: Repository<Crop>,
@@ -644,10 +646,10 @@ export class BuyRequestsService {
     }
 
     async findOngoingBuyRequestOrders(query: OngoingBuyRequestOrdersQueryDto) {
-        try{
+        try {
             const {
                 search,
-                state = OrderState.AWAITING_SHIPPING,
+                state,
                 pageNumber = 1,
                 pageSize = 20,
             } = query;
@@ -658,35 +660,50 @@ export class BuyRequestsService {
                 .createQueryBuilder('buyRequest')
                 .leftJoinAndSelect('buyRequest.buyer', 'buyer')
                 .leftJoinAndSelect('buyRequest.seller', 'seller')
-                // .leftJoinAndSelect('buyRequest.cropType', 'cropType')
                 .leftJoinAndSelect('buyRequest.product', 'product')
                 .leftJoinAndSelect('buyRequest.purchaseOrderDoc', 'purchaseOrderDoc')
                 .leftJoinAndSelect('buyRequest.ratings', 'ratings')
-                .where('buyRequest.isDeleted = false')
-                .andWhere('buyRequest.orderState = :state', { state });
+                .where('buyRequest.isDeleted = false');
+
+            // Apply state filter
+            if (state) {
+                qb.andWhere('buyRequest.orderState = :state', { state });
+            } else {
+                qb.andWhere(
+                    'buyRequest.orderState IN (:...states)',
+                    {
+                        states: [
+                            OrderState.AWAITING_SHIPPING,
+                            OrderState.IN_TRANSIT,
+                            OrderState.DELIVERED,
+                            OrderState.COMPLETED,
+                        ],
+                    },
+                );
+            }
 
             // Apply search filter
             if (search) {
-                qb.andWhere(
-                    `(
-                        LOWER(buyer.firstName) LIKE :s OR
-                        LOWER(buyer.lastName) LIKE :s OR
-                        LOWER(buyer.farmAddress) LIKE :s OR
-                        LOWER(buyer.country) LIKE :s OR
-                        LOWER(buyer.state) LIKE :s OR
-                        LOWER(buyer.farmName) LIKE :s OR
+            qb.andWhere(
+                `(
+                    LOWER(buyer.firstName) LIKE :s OR
+                    LOWER(buyer.lastName) LIKE :s OR
+                    LOWER(buyer.farmAddress) LIKE :s OR
+                    LOWER(buyer.country) LIKE :s OR
+                    LOWER(buyer.state) LIKE :s OR
+                    LOWER(buyer.farmName) LIKE :s OR
 
-                        LOWER(seller.firstName) LIKE :s OR
-                        LOWER(seller.lastName) LIKE :s OR
-                        LOWER(seller.farmAddress) LIKE :s OR
-                        LOWER(seller.country) LIKE :s OR
-                        LOWER(seller.state) LIKE :s OR
-                        LOWER(seller.farmName) LIKE :s OR
+                    LOWER(seller.firstName) LIKE :s OR
+                    LOWER(seller.lastName) LIKE :s OR
+                    LOWER(seller.farmAddress) LIKE :s OR
+                    LOWER(seller.country) LIKE :s OR
+                    LOWER(seller.state) LIKE :s OR
+                    LOWER(seller.farmName) LIKE :s OR
 
-                        LOWER(crop.name) LIKE :s
-                    )`,
-                    { s: `%${search.toLowerCase()}%` },
-                );
+                    LOWER(product.name) LIKE :s
+                )`,
+                { s: `%${search.toLowerCase()}%` },
+            );
             }
 
             qb.orderBy('buyRequest.createdAt', 'DESC')
@@ -705,8 +722,8 @@ export class BuyRequestsService {
                     pageSize,
                 },
             };
-        }catch (error) {
-            handleServiceError(error, 'An error occurred while fetching ongoing buy requests');
+        } catch (error) {
+            handleServiceError( error, 'An error occurred while fetching ongoing buy requests');
         }
     }
 
@@ -915,7 +932,11 @@ export class BuyRequestsService {
     async deleteRequest(id: string, currentUser: User): Promise<any> {
         try {
             const buyRequest = await this.buyRequestsRepository.findOne({ 
-                where: { id } 
+                where: { id },
+                relations: [
+                    'buyer',
+                    'seller',
+                ],
             });
             if (!buyRequest || buyRequest.isDeleted) throw new NotFoundException('BuyRequest not found');
 
@@ -931,6 +952,7 @@ export class BuyRequestsService {
                 message: 'BuyRequest deleted successfully',
             };
         } catch (error) {
+            this.logger.error(`Failed to delete buyrequest: ${id}`, error.stack);
             handleServiceError(error, 'An error occurred, while deleting BuyRequest');
         }
     }
